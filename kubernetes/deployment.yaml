@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cotton-disease-api
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: cotton-disease-api
+  template:
+    metadata:
+      labels:
+        app: cotton-disease-api
+    spec:
+      containers:
+      - name: api
+        image: cotton-disease-detection:latest
+        ports:
+        - containerPort: 5000
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "2000m"
+        livenessProbe:
+          httpGet:
+            path: /api/v1/health
+            port: 5000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /api/v1/health
+            port: 5000
+          initialDelaySeconds: 10
+          periodSeconds: 5
