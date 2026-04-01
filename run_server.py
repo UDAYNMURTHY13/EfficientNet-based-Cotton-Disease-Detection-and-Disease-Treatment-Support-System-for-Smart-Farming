@@ -9,6 +9,10 @@ import os
 import logging
 from pathlib import Path
 
+# Add paths for imports
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'services'))
+sys.path.insert(0, os.path.dirname(__file__))
+
 # Setup logging
 logging.basicConfig(
     level=logging.INFO,
@@ -62,6 +66,8 @@ def check_model():
 def check_xai_modules():
     """Verify XAI modules are available"""
     logger.info("Checking XAI modules...")
+
+    services_dir = Path(__file__).parent / 'services'
     
     required_files = [
         'xai_explainer.py',
@@ -72,7 +78,7 @@ def check_xai_modules():
     
     missing = []
     for filename in required_files:
-        if not Path(filename).exists():
+        if not (services_dir / filename).exists():
             missing.append(filename)
     
     if missing:
@@ -83,7 +89,7 @@ def check_xai_modules():
     return True
 
 
-def start_server(host='0.0.0.0', port=8000, reload=True):
+def start_server(host='0.0.0.0', port=8000, reload=False):
     """Start FastAPI server with uvicorn"""
     import uvicorn
     

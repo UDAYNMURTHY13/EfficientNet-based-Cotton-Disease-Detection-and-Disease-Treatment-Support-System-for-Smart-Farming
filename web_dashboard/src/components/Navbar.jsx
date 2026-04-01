@@ -7,9 +7,28 @@ const Navbar = ({ onMenuClick }) => {
   const { user, logout } = useContext(AuthContext);
   const navigate = useNavigate();
 
+  const getRoleIcon = () => {
+    const icons = {
+      farmer: '👨‍🌾',
+      expert: '👨‍⚕️',
+      admin: '👨‍💼',
+    };
+    return icons[user?.role] || '👤';
+  };
+
+  const getRoleLabel = () => {
+    const labels = {
+      farmer: 'Farmer',
+      expert: 'Expert',
+      admin: 'Administrator',
+    };
+    return labels[user?.role] || 'User';
+  };
+
   const handleLogout = async () => {
     await logout();
-    navigate('/login');
+    sessionStorage.removeItem('selectedRole');
+    navigate('/');
   };
 
   return (
@@ -18,14 +37,20 @@ const Navbar = ({ onMenuClick }) => {
         <button className="menu-toggle" onClick={onMenuClick}>
           ☰
         </button>
-        <h1 className="logo">CottonCare Dashboard</h1>
+        <h1 className="logo">🌾 CottonCare Dashboard</h1>
       </div>
 
       <div className="navbar-right">
         <div className="user-menu">
-          <span className="user-name">{user?.name || 'User'}</span>
-          <button className="logout-btn" onClick={handleLogout}>
-            Logout
+          <div className="user-info">
+            <span className="user-role-icon">{getRoleIcon()}</span>
+            <div className="user-details">
+              <p className="user-name">{user?.name || 'User'}</p>
+              <p className="user-role">{getRoleLabel()}</p>
+            </div>
+          </div>
+          <button className="logout-btn" onClick={handleLogout} title="Logout">
+            🚪
           </button>
         </div>
       </div>

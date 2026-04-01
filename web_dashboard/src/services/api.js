@@ -44,6 +44,21 @@ export const apiService = {
   addFeedback: (caseId, feedback) =>
     axiosInstance.post(`/api/cases/${caseId}/feedback`, feedback),
 
+  // Scan & Disease Prediction endpoints (NEW)
+  uploadScan: (formData) => axiosInstance.post('/api/scans/upload', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  predictDisease: (scanId, imageData) => 
+    axiosInstance.post(`/api/scans/${scanId}/predict`, { imageData }),
+  getScanReport: (scanId) => axiosInstance.get(`/api/scans/${scanId}/report`),
+  submitForVerification: (scanId, reportData) =>
+    axiosInstance.post(`/api/scans/${scanId}/submit-verification`, reportData),
+  getFarmerScans: (farmerId, params) => 
+    axiosInstance.get(`/api/farmers/${farmerId}/scans`, { params }),
+  getScanHistory: (params) => axiosInstance.get('/api/scans/history', { params }),
+  updateScanStatus: (scanId, status) =>
+    axiosInstance.put(`/api/scans/${scanId}/status`, { status }),
+
   // Users endpoints
   getUsers: (params) => axiosInstance.get('/api/users', { params }),
   createUser: (data) => axiosInstance.post('/api/users', data),
