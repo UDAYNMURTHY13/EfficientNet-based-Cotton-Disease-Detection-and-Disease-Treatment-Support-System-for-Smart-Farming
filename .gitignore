@@ -17,3 +17,9 @@ uploads/
 
 # Ignore node modules
 node_modules/
+node_modules/
+*.keras
+*.h5
+__pycache__/
+venv/
+.cache/
