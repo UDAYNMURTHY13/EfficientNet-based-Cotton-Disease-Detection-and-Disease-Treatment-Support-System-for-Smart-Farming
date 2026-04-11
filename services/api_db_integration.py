@@ -6,7 +6,7 @@ Adds database persistence to all API operations
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 from typing import Optional, List
-from db_operations import (
+from services.db_operations import (
     ScanRepository, PredictionRepository, ReportRepository,
     VerificationRepository, AuditRepository
 )

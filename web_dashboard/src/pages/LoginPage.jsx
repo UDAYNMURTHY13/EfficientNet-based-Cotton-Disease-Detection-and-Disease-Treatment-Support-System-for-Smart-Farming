@@ -1,109 +1,117 @@
-/**
- * Login Page Component
- * Farmer login interface
- */
-
-import React, { useState, useContext } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import React, { useState, useContext, useEffect } from 'react';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import AuthContext from '../context/AuthContext';
 import APIService from '../services/api';
 import '../styles/auth.css';
 
 function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { login } = useContext(AuthContext);
-  const [formData, setFormData] = useState({
-    email: '',
-    password: ''
-  });
+  const [formData, setFormData] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
+  const [info, setInfo] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('reason') === 'session_expired') {
+      setInfo('Your session has expired. Please log in again.');
+    }
+  }, [location.search]);
+
+  const handleChange = (e) =>
+    setFormData((p) => ({ ...p, [e.target.name]: e.target.value }));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
-
     try {
-      const response = await APIService.login(formData.email, formData.password);
-      
-      if (response.access_token) {
-        // Get user profile
-        const userResponse = await APIService.getProfile();
-        
-        login(userResponse, response.access_token);
+      const res = await APIService.login(formData.email, formData.password);
+      if (res.access_token) {
+        const user = await APIService.getProfile(res.access_token);
+        login(user, res.access_token);
         navigate('/dashboard');
       } else {
-        setError(response.detail || 'Login failed');
+        setError(res.detail || 'Invalid credentials. Please try again.');
       }
     } catch (err) {
-      setError(err.message || 'An error occurred during login');
+      setError(err.message || 'Connection error. Is the backend running?');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="auth-container">
-      <div className="auth-card">
-        <div className="auth-header">
-          <h1>🌾 CottonCare AI</h1>
-          <p>Farmer Login</p>
+    <div className="auth-page">
+      {/* Left brand panel */}
+      <aside className="auth-brand">
+        <div className="brand-logo">🌿</div>
+        <div className="brand-name">CottonCare AI</div>
+        <p className="brand-tagline">AI-powered cotton disease detection for modern farmers</p>
+        <div className="brand-features">
+          <div className="brand-feature">
+            <span className="brand-feature-icon">🔬</span>
+            <span className="brand-feature-text">Multi-stage disease analysis</span>
+          </div>
+          <div className="brand-feature">
+            <span className="brand-feature-icon">🤖</span>
+            <span className="brand-feature-text">Explainable AI insights</span>
+          </div>
+          <div className="brand-feature">
+            <span className="brand-feature-icon">💊</span>
+            <span className="brand-feature-text">Treatment recommendations</span>
+          </div>
+          <div className="brand-feature">
+            <span className="brand-feature-icon">📈</span>
+            <span className="brand-feature-text">Crop health tracking</span>
+          </div>
         </div>
+      </aside>
 
-        {error && <div className="alert alert-error">{error}</div>}
-
-        <form onSubmit={handleSubmit} className="auth-form">
-          <div className="form-group">
-            <label htmlFor="email">Email Address</label>
-            <input
-              type="email"
-              id="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              placeholder="your@email.com"
-              required
-              disabled={loading}
-            />
+      {/* Right form panel */}
+      <div className="auth-form-panel">
+        <div className="auth-form-inner">
+          <div className="auth-form-header">
+            <h2>Welcome back</h2>
+            <p>Sign in to your CottonCare account</p>
           </div>
 
-          <div className="form-group">
-            <label htmlFor="password">Password</label>
-            <input
-              type="password"
-              id="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              placeholder="Enter your password"
-              required
-              disabled={loading}
-            />
+          {info  && <div className="alert alert-info">{info}</div>}
+          {error && <div className="alert alert-error">{error}</div>}
+
+          <form onSubmit={handleSubmit} className="auth-form">
+            <div className="form-group">
+              <label htmlFor="email">Email address</label>
+              <input
+                type="email" id="email" name="email"
+                value={formData.email} onChange={handleChange}
+                placeholder="farmer@example.com" required disabled={loading}
+              />
+            </div>
+            <div className="form-group">
+              <label htmlFor="password">Password</label>
+              <input
+                type="password" id="password" name="password"
+                value={formData.password} onChange={handleChange}
+                placeholder="Enter your password" required disabled={loading}
+              />
+            </div>
+
+            <button type="submit" className="btn btn-primary btn-block btn-lg" disabled={loading}
+              style={{ marginTop: '8px' }}>
+              {loading ? <><span className="spinner-sm" /> Signing in…</> : 'Sign in'}
+            </button>
+          </form>
+
+          <div className="demo-hint">
+            Demo: <strong>test@example.com</strong> / <strong>password123</strong>
           </div>
 
-          <button
-            type="submit"
-            className="btn btn-primary btn-block"
-            disabled={loading}
-          >
-            {loading ? 'Logging in...' : '🔓 Login'}
-          </button>
-        </form>
-
-        <div className="auth-footer">
-          <p>Don't have an account? <Link to="/signup">Sign up here</Link></p>
-          <p style={{ fontSize: '12px', color: '#999', marginTop: '10px' }}>
-            Demo: Use test@example.com / password123
-          </p>
+          <div className="auth-footer">
+            Don't have an account? <Link to="/signup">Create one free</Link>
+          </div>
         </div>
       </div>
     </div>
@@ -111,3 +119,4 @@ function LoginPage() {
 }
 
 export default LoginPage;
+

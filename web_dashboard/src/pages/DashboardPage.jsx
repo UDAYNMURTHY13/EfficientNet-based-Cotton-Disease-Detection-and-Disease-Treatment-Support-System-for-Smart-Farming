@@ -1,176 +1,153 @@
-/**
- * Dashboard Page Component
- * Main landing page for authenticated farmers
- */
-
 import React, { useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AuthContext from '../context/AuthContext';
 import APIService from '../services/api';
 import '../styles/dashboard.css';
 
+const SEV_COLORS = {
+  Healthy:  '#22c55e',
+  Mild:     '#84cc16',
+  Moderate: '#f59e0b',
+  Severe:   '#ef4444',
+  Critical: '#7f1d1d',
+};
+
+function StatCard({ icon, label, value, sub, color }) {
+  return (
+    <div className="stat-card" style={{ borderTop: `3px solid ${color}` }}>
+      <div className="stat-icon" style={{ background: color + '18', color }}>{icon}</div>
+      <div className="stat-body">
+        <div className="stat-value">{value}</div>
+        <div className="stat-label">{label}</div>
+        {sub && <div className="stat-sub">{sub}</div>}
+      </div>
+    </div>
+  );
+}
+
 function DashboardPage() {
   const navigate = useNavigate();
-  const { user, logout } = useContext(AuthContext);
+  const { user } = useContext(AuthContext);
   const [stats, setStats] = useState(null);
+  const [recent, setRecent] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
 
   useEffect(() => {
-    loadStats();
+    Promise.all([
+      APIService.getAnalysisStats().catch(() => null),
+      APIService.getAnalysisHistory(1, 5).catch(() => ({ items: [] })),
+    ]).then(([s, h]) => {
+      setStats(s);
+      setRecent(h?.items || []);
+      setLoading(false);
+    });
   }, []);
 
-  const loadStats = async () => {
-    try {
-      const data = await APIService.getAnalysisStats();
-      setStats(data);
-    } catch (err) {
-      setError('Failed to load statistics');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const name = user?.full_name || user?.name || 'Farmer';
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
 
   return (
     <div className="dashboard-page">
-      {/* Navbar */}
-      <nav className="navbar">
-        <div className="navbar-content">
-          <div className="navbar-logo">🌾 CottonCare AI</div>
-          <div className="navbar-menu">
-            <a href="#" onClick={() => navigate('/analyze')} className="nav-link">
-              📸 Analyze
-            </a>
-            <a href="#" onClick={() => navigate('/history')} className="nav-link">
-              📋 History
-            </a>
-            <a href="#" onClick={() => navigate('/profile')} className="nav-link">
-              👤 Profile
-            </a>
-            <button className="nav-btn btn-secondary" onClick={logout}>
-              Logout
-            </button>
-          </div>
-        </div>
-      </nav>
-
-      {/* Main Content */}
-      <div className="dashboard-container">
-        {/* Welcome Section */}
-        <div className="welcome-section">
-          <h1>Welcome, {user?.name || 'Farmer'}! 👋</h1>
+      {/* Hero */}
+      <div className="dashboard-hero">
+        <div className="hero-text">
+          <h1>{greeting}, {name} 👋</h1>
           <p>Monitor your cotton crops with AI-powered disease detection</p>
         </div>
-
-        {/* Quick Stats */}
-        {loading ? (
-          <div className="loading">Loading statistics...</div>
-        ) : stats ? (
-          <div className="stats-grid">
-            <div className="stat-card">
-              <div className="stat-icon">📊</div>
-              <div className="stat-value">{stats.total_analyses || 0}</div>
-              <div className="stat-label">Total Analyses</div>
-            </div>
-
-            <div className="stat-card">
-              <div className="stat-icon">🍃</div>
-              <div className="stat-value">{stats.disease_types?.length || 0}</div>
-              <div className="stat-label">Disease Types Found</div>
-            </div>
-
-            <div className="stat-card">
-              <div className="stat-icon">📈</div>
-              <div className="stat-value">{(stats.avg_confidence * 100).toFixed(0)}%</div>
-              <div className="stat-label">Avg Confidence</div>
-            </div>
-
-            <div className="stat-card">
-              <div className="stat-icon">⚠️</div>
-              <div className="stat-value">{stats.severity_distribution?.Moderate || 0}</div>
-              <div className="stat-label">Moderate Cases</div>
-            </div>
-          </div>
-        ) : null}
-
-        {/* Features Grid */}
-        <div className="features-section">
-          <h2>🎯 Key Features</h2>
-          <div className="features-grid">
-            <div className="feature-card" onClick={() => navigate('/analyze')}>
-              <div className="feature-icon">📸</div>
-              <h3>Analyze Images</h3>
-              <p>Upload or capture cotton leaf images for instant disease detection</p>
-              <span className="feature-arrow">→</span>
-            </div>
-
-            <div className="feature-card" onClick={() => navigate('/history')}>
-              <div className="feature-icon">📋</div>
-              <h3>View History</h3>
-              <p>Browse all your previous analyses and trend over time</p>
-              <span className="feature-arrow">→</span>
-            </div>
-
-            <div className="feature-card" onClick={() => navigate('/profile')}>
-              <div className="feature-icon">⚙️</div>
-              <h3>Settings</h3>
-              <p>Update your profile and farm information</p>
-              <span className="feature-arrow">→</span>
-            </div>
-
-            <div className="feature-card">
-              <div className="feature-icon">📚</div>
-              <h3>Learn More</h3>
-              <p>Access guides on disease management and treatment options</p>
-              <span className="feature-arrow">→</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Info Section */}
-        <div className="info-section">
-          <h2>ℹ️ How It Works</h2>
-          <div className="steps">
-            <div className="step">
-              <div className="step-number">1</div>
-              <h4>Upload Image</h4>
-              <p>Take a photo of your cotton leaf</p>
-            </div>
-            <div className="step">
-              <div className="step-number">2</div>
-              <h4>AI Analysis</h4>
-              <p>Deep learning model detects diseases</p>
-            </div>
-            <div className="step">
-              <div className="step-number">3</div>
-              <h4>Get Results</h4>
-              <p>View detailed diagnosis and recommendations</p>
-            </div>
-            <div className="step">
-              <div className="step-number">4</div>
-              <h4>Take Action</h4>
-              <p>Follow treatment recommendations</p>
-            </div>
-          </div>
-        </div>
-
-        {/* CTA */}
-        <div className="cta-section">
-          <h2>Ready to protect your crops?</h2>
-          <button 
-            className="btn btn-primary btn-large"
-            onClick={() => navigate('/analyze')}
-          >
-            🚀 Start Analysis Now
-          </button>
-        </div>
+        <button className="btn btn-primary btn-lg" onClick={() => navigate('/analyze')}>
+          🔬 New Analysis
+        </button>
       </div>
 
-      {/* Footer */}
-      <footer className="dashboard-footer">
-        <p>CottonCare AI v3.0 | Powered by Advanced Machine Learning</p>
-      </footer>
+      {/* Stats */}
+      {loading ? (
+        <div className="loading-placeholder"><div className="spinner-dark" /> Loading statistics…</div>
+      ) : (
+        <div className="stats-grid">
+          <StatCard icon="📊" label="Total Analyses" value={stats?.total_analyses ?? 0}
+            sub="All time" color="#16a34a" />
+          <StatCard icon="🦠" label="Diseases Found" value={stats?.disease_types?.length ?? 0}
+            sub="Unique types" color="#0ea5e9" />
+          <StatCard icon="🎯" label="Avg Confidence"
+            value={stats?.avg_confidence ? `${(stats.avg_confidence * 100).toFixed(0)}%` : '—'}
+            sub="Detection accuracy" color="#8b5cf6" />
+          <StatCard icon="⚠️" label="Moderate Cases"
+            value={stats?.severity_distribution?.Moderate ?? 0}
+            sub="Needs attention" color="#f59e0b" />
+        </div>
+      )}
+
+      {/* Quick Actions */}
+      <div className="section-title">Quick Actions</div>
+      <div className="quick-actions">
+        {[
+          { icon: '📸', title: 'Analyze Image', desc: 'Upload or capture a leaf photo', path: '/analyze', color: '#16a34a' },
+          { icon: '📋', title: 'View History', desc: 'Browse all past analyses', path: '/history', color: '#0ea5e9' },
+          { icon: '👤', title: 'My Profile', desc: 'Update farm information', path: '/profile', color: '#8b5cf6' },
+        ].map((a) => (
+          <div key={a.path} className="action-card" onClick={() => navigate(a.path)}
+            style={{ '--accent': a.color }}>
+            <div className="action-icon" style={{ background: a.color + '18', color: a.color }}>{a.icon}</div>
+            <div>
+              <div className="action-title">{a.title}</div>
+              <div className="action-desc">{a.desc}</div>
+            </div>
+            <span className="action-arrow">→</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Recent Analyses */}
+      <div className="section-header">
+        <span className="section-title" style={{ marginBottom: 0 }}>Recent Analyses</span>
+        <button className="btn btn-ghost btn-sm" onClick={() => navigate('/history')}>View all →</button>
+      </div>
+
+      {recent.length === 0 ? (
+        <div className="empty-state">
+          <div className="empty-icon">🌿</div>
+          <h3>No analyses yet</h3>
+          <p>Upload your first cotton leaf image to get started</p>
+          <button className="btn btn-primary" onClick={() => navigate('/analyze')}>Start Analysis</button>
+        </div>
+      ) : (
+        <div className="recent-table">
+          <div className="rtable-head">
+            <span>Disease</span><span>Severity</span><span>Confidence</span><span>Date</span>
+          </div>
+          {recent.map((r) => (
+            <div key={r.id} className="rtable-row">
+              <span className="rt-disease">{r.disease_detected}</span>
+              <span>
+                <span className={`badge badge-${r.severity_level}`}>{r.severity_level}</span>
+              </span>
+              <span className="rt-conf">
+                {r.confidence_score ? `${(r.confidence_score * 100).toFixed(0)}%` : '—'}
+              </span>
+              <span className="rt-date">{new Date(r.analyzed_at).toLocaleDateString('en-IN')}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* How it works */}
+      <div className="section-title" style={{ marginTop: '40px' }}>How It Works</div>
+      <div className="steps-row">
+        {[
+          { n: '1', icon: '📷', title: 'Capture', desc: 'Take a photo of your cotton leaf' },
+          { n: '2', icon: '🤖', title: 'AI Analysis', desc: 'Deep learning detects diseases instantly' },
+          { n: '3', icon: '📋', title: 'Results', desc: 'Detailed diagnosis with severity score' },
+          { n: '4', icon: '💊', title: 'Treatment', desc: 'Expert treatment recommendations' },
+        ].map((s) => (
+          <div key={s.n} className="step-card">
+            <div className="step-num">{s.n}</div>
+            <div className="step-icon">{s.icon}</div>
+            <div className="step-title">{s.title}</div>
+            <div className="step-desc">{s.desc}</div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

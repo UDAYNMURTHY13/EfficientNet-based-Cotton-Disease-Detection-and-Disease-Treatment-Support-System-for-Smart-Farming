@@ -3,7 +3,7 @@
  * Handles all API communication with backend
  */
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+const API_BASE_URL = 'http://localhost:8000/api/v1';
 
 class APIService {
   constructor() {
@@ -13,6 +13,23 @@ class APIService {
   getAuthHeader() {
     const token = localStorage.getItem('token');
     return token ? { Authorization: `Bearer ${token}` } : {};
+  }
+
+  /**
+   * Central fetch wrapper. Fires 'auth:expired' event on 401 so
+   * AuthContext can clear state and redirect to /login automatically.
+   */
+  async fetchWithAuth(url, options = {}) {
+    const response = await fetch(url, options);
+    if (response.status === 401) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.dispatchEvent(new CustomEvent('auth:expired'));
+      const err = new Error('Session expired. Please log in again.');
+      err.status = 401;
+      throw err;
+    }
+    return response;
   }
 
   // ============================================================================
@@ -37,15 +54,18 @@ class APIService {
     return response.json();
   }
 
-  async getProfile() {
-    const response = await fetch(`${this.baseURL}/auth/me`, {
-      headers: { ...this.getAuthHeader() }
+  async getProfile(token = null) {
+    const authHeader = token
+      ? { Authorization: `Bearer ${token}` }
+      : this.getAuthHeader();
+    const response = await this.fetchWithAuth(`${this.baseURL}/auth/me`, {
+      headers: { ...authHeader }
     });
     return response.json();
   }
 
   async updateProfile(data) {
-    const response = await fetch(`${this.baseURL}/auth/profile`, {
+    const response = await this.fetchWithAuth(`${this.baseURL}/auth/profile`, {
       method: 'PUT',
       headers: { 
         'Content-Type': 'application/json',
@@ -79,42 +99,33 @@ class APIService {
   }
 
   async getAnalysisHistory(page = 1, pageSize = 10) {
-    const response = await fetch(
+    const response = await this.fetchWithAuth(
       `${this.baseURL}/analysis/history?page=${page}&page_size=${pageSize}`,
-      {
-        headers: this.getAuthHeader()
-      }
+      { headers: this.getAuthHeader() }
     );
     return response.json();
   }
 
   async getAnalysisDetail(analysisId) {
-    const response = await fetch(
+    const response = await this.fetchWithAuth(
       `${this.baseURL}/analysis/history/${analysisId}`,
-      {
-        headers: this.getAuthHeader()
-      }
+      { headers: this.getAuthHeader() }
     );
     return response.json();
   }
 
   async deleteAnalysis(analysisId) {
-    const response = await fetch(
+    const response = await this.fetchWithAuth(
       `${this.baseURL}/analysis/history/${analysisId}`,
-      {
-        method: 'DELETE',
-        headers: this.getAuthHeader()
-      }
+      { method: 'DELETE', headers: this.getAuthHeader() }
     );
     return response.json();
   }
 
   async getAnalysisStats() {
-    const response = await fetch(
+    const response = await this.fetchWithAuth(
       `${this.baseURL}/analysis/stats`,
-      {
-        headers: this.getAuthHeader()
-      }
+      { headers: this.getAuthHeader() }
     );
     return response.json();
   }

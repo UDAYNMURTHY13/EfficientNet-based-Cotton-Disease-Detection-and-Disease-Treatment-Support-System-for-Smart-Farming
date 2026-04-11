@@ -1,274 +1,220 @@
-/**
- * Analysis Results Component
- * Displays disease analysis results with visualizations
- */
+﻿import React from "react";
+import "../styles/results.css";
 
-import React from 'react';
-import '../styles/results.css';
+const SEV_COLOR = {
+  Healthy: "#22c55e", Mild: "#84cc16", Moderate: "#f59e0b",
+  Severe: "#ef4444", Critical: "#7f1d1d"
+};
 
-function AnalysisResults({ result }) {
-  if (!result || !result.analysis) {
-    return <div>No analysis data available</div>;
-  }
+const REC_TEXT = {
+  Healthy: "Your crops are healthy! Continue regular monitoring and preventive care.",
+  Mild: "Monitor regularly. Apply preventive measures to stop disease spread.",
+  Moderate: "Apply recommended fungicides or insecticides immediately. Increase monitoring.",
+  Severe: "Urgent treatment required. Implement IPM strategies. Consult agricultural experts.",
+  Critical: "CRITICAL: Immediate intervention needed. Isolate affected plants. Contact authorities."
+};
 
-  const analysis = result.analysis;
-  const stage1 = analysis.stage_1_disease_detection;
-  const stage2 = analysis.stage_2_area_analysis;
-  const stage3 = analysis.stage_3_lesion_analysis;
-  const stage4 = analysis.stage_4_severity_estimation;
+function ConfBar({ value, color }) {
+  return (
+    <div className="conf-bar-wrap">
+      <div className="conf-bar-track">
+        <div className="conf-bar-fill" style={{ width: `${value}%`, background: color }} />
+      </div>
+      <span className="conf-bar-label">{value.toFixed(1)}%</span>
+    </div>
+  );
+}
 
-  const getSeverityClass = (level) => {
-    const classes = {
-      'Healthy': 'severity-healthy',
-      'Mild': 'severity-mild',
-      'Moderate': 'severity-moderate',
-      'Severe': 'severity-severe',
-      'Critical': 'severity-critical'
-    };
-    return classes[level] || 'severity-moderate';
-  };
+function AnalysisResults({ result, originalPreview }) {
+  if (!result?.analysis) return <div>No analysis data available</div>;
 
-  const getSeverityColor = (level) => {
-    const colors = {
-      'Healthy': '#27ae60',
-      'Mild': '#f39c12',
-      'Moderate': '#e74c3c',
-      'Severe': '#c0392b',
-      'Critical': '#8b0000'
-    };
-    return colors[level] || '#e74c3c';
-  };
+  const { analysis } = result;
+  // Actual pipeline flat structure
+  const disease = analysis.disease;
+  const confidence = analysis.confidence ?? 0;          // 0-1 float
+  const confPct = analysis.confidence_percentage ?? (confidence * 100);
+  const affectedArea = analysis.affected_area;          // null for Healthy
+  const severity = analysis.severity || {};
+  const lesions = analysis.lesion_analysis;             // null for Healthy
+  const allPredictions = analysis.all_predictions || {};
+  const isHealthy = disease === 'Healthy';
+
+  // severity.level is 'None' when healthy — map to 'Healthy' for display
+  const sev = isHealthy ? 'Healthy' : (severity?.level || 'Moderate');
+  const color = SEV_COLOR[sev] || '#f59e0b';
+
+  // Sort all_predictions by confidence descending for display
+  const predEntries = Object.entries(allPredictions)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
+
+  const grad_cam_overlay = analysis.grad_cam_overlay;
+  const grad_cam_heatmap = analysis.grad_cam_heatmap;
 
   return (
-    <div className="results-container">
-      {/* Key Findings */}
-      <div className="findings-section">
-        <h2>🎯 Analysis Results</h2>
-        
-        <div className="findings-grid">
-          <div className="finding-card">
-            <div className="finding-label">Disease Detected</div>
-            <div className="finding-value disease-name">{stage1.disease}</div>
-          </div>
-
-          <div className="finding-card">
-            <div className="finding-label">Confidence Level</div>
-            <div className="finding-value confidence">
-              {(stage1.confidence * 100).toFixed(1)}%
-            </div>
-            <div className="confidence-bar">
-              <div 
-                className="confidence-fill" 
-                style={{ width: `${stage1.confidence * 100}%` }}
-              ></div>
-            </div>
-          </div>
-
-          <div className="finding-card">
-            <div className="finding-label">Severity</div>
-            <div className={`finding-value severity-badge ${getSeverityClass(stage4.level)}`}>
-              {stage4.level}
-            </div>
-          </div>
-
-          <div className="finding-card">
-            <div className="finding-label">Affected Area</div>
-            <div className="finding-value affected-area">
-              {stage2.affected_area_percentage}%
-            </div>
-          </div>
+    <div className="results-page">
+      {/* Hero strip */}
+      <div className="results-hero" style={{ borderLeft: `5px solid ${color}` }}>
+        <div className="rh-main">
+          <div className="rh-disease">{disease || "Unknown"}</div>
+          <div className="rh-desc">{isHealthy ? 'No disease detected — leaf appears healthy' : severity?.description}</div>
+        </div>
+        <div className="rh-severity" style={{ background: color + "18", color }}>
+          <div className="rh-sev-label">Severity</div>
+          <div className="rh-sev-value">{sev}</div>
         </div>
       </div>
 
-      {/* Detailed Analysis */}
-      <div className="analysis-details">
-        <div className="details-grid">
-          <div className="detail-card">
-            <h3>📋 Disease Information</h3>
-            <div className="detail-item">
-              <span className="detail-label">Disease Name:</span>
-              <span className="detail-value">{stage1.disease}</span>
-            </div>
-            <div className="detail-item">
-              <span className="detail-label">Confidence:</span>
-              <span className="detail-value">{(stage1.confidence * 100).toFixed(2)}%</span>
-            </div>
-            <div className="detail-item">
-              <span className="detail-label">Top Prediction:</span>
-              <span className="detail-value">{stage1.confidence_percentage}</span>
-            </div>
+      {/* Grad-CAM visualization panel — only for disease detections */}
+      {!isHealthy && (originalPreview || grad_cam_overlay || grad_cam_heatmap) && (
+        <div className="card gradcam-card">
+          <div className="card-header">
+            <h3>🔥 Grad-CAM Visualization</h3>
+            <span className="gradcam-badge">Explainable AI</span>
           </div>
-
-          <div className="detail-card">
-            <h3>🔍 Extent Analysis</h3>
-            <div className="detail-item">
-              <span className="detail-label">Affected Area:</span>
-              <span className="detail-value">{stage2.affected_area_percentage}%</span>
-            </div>
-            <div className="detail-item">
-              <span className="detail-label">Lesions Found:</span>
-              <span className="detail-value">{stage3.count}</span>
-            </div>
-            <div className="detail-item">
-              <span className="detail-label">Analysis Time:</span>
-              <span className="detail-value">{result.inference_time.toFixed(2)}s</span>
-            </div>
-          </div>
-
-          <div className="detail-card">
-            <h3>⚠️ Severity Assessment</h3>
-            <div className="detail-item">
-              <span className="detail-label">Level:</span>
-              <span className={`detail-value severity-badge ${getSeverityClass(stage4.level)}`}>
-                {stage4.level}
-              </span>
-            </div>
-            <div className="detail-item">
-              <span className="detail-label">Score:</span>
-              <span className="detail-value">{stage4.score.toFixed(2)}/4.0</span>
-            </div>
-            <div className="detail-item">
-              <span className="detail-label">Status:</span>
-              <span className="detail-value">{stage4.description}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Lesion Details */}
-      {stage3.details && stage3.details.length > 0 && (
-        <div className="lesion-section">
-          <h3>🦗 Detected Lesions ({stage3.count})</h3>
-          <div className="lesion-grid">
-            {stage3.details.map((lesion, idx) => (
-              <div key={idx} className="lesion-item">
-                <div className="lesion-number">Lesion {idx + 1}</div>
-                <div className="lesion-detail">
-                  <span className="lesion-label">Area:</span>
-                  <span className="lesion-value">{lesion.area_percentage}%</span>
+          <div className="card-body">
+            <div className="gradcam-grid">
+              {originalPreview && (
+                <div className="gradcam-panel">
+                  <div className="gradcam-label">Original Image</div>
+                  <img src={originalPreview} alt="Original leaf" className="gradcam-img" />
                 </div>
-                <div className="lesion-detail">
-                  <span className="lesion-label">Position:</span>
-                  <span className="lesion-value">({lesion.position[0]}, {lesion.position[1]})</span>
+              )}
+              {grad_cam_overlay ? (
+                <div className="gradcam-panel">
+                  <div className="gradcam-label">Grad-CAM Overlay</div>
+                  <img src={grad_cam_overlay} alt="Grad-CAM overlay" className="gradcam-img" />
+                </div>
+              ) : grad_cam_heatmap ? (
+                <div className="gradcam-panel">
+                  <div className="gradcam-label">Grad-CAM Heatmap</div>
+                  <img src={grad_cam_heatmap} alt="Grad-CAM heatmap" className="gradcam-img" />
+                </div>
+              ) : null}
+              {grad_cam_overlay && grad_cam_heatmap && (
+                <div className="gradcam-panel">
+                  <div className="gradcam-label">Pure Heatmap</div>
+                  <img src={grad_cam_heatmap} alt="Pure heatmap" className="gradcam-img" />
+                </div>
+              )}
+            </div>
+            <div className="gradcam-legend">
+              <div className="gradcam-legend-item"><span className="gradcam-dot" style={{background:'#0000ff'}} />Low attention</div>
+              <div className="gradcam-legend-item"><span className="gradcam-dot" style={{background:'#00ffff'}} />Mild</div>
+              <div className="gradcam-legend-item"><span className="gradcam-dot" style={{background:'#00ff00'}} />Moderate</div>
+              <div className="gradcam-legend-item"><span className="gradcam-dot" style={{background:'#ffff00'}} />High</div>
+              <div className="gradcam-legend-item"><span className="gradcam-dot" style={{background:'#ff0000'}} />Critical focus</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Metric cards */}
+      <div className="results-metrics">
+        {[
+          { label: "Confidence", value: `${confPct.toFixed(1)}%`, icon: "🎯" },
+          { label: "Affected Area", value: affectedArea != null ? `${Number(affectedArea).toFixed(1)}%` : "—", icon: "🍃" },
+          { label: "Lesions Found", value: lesions != null ? lesions.count : "—", icon: "🔍" },
+          { label: "Severity Score", value: `${severity?.score?.toFixed(2) ?? "—"} / 4.0`, icon: "📊" },
+          { label: "Inference Time", value: `${(result?.inference_time ?? analysis?.inference_time)?.toFixed(2) ?? "—"}s`, icon: "⏱️" },
+        ].map(m => (
+          <div key={m.label} className="results-metric-card">
+            <div className="rmc-icon">{m.icon}</div>
+            <div className="rmc-value">{m.value}</div>
+            <div className="rmc-label">{m.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Two-col detail */}
+      <div className="results-detail-grid">
+        {/* Confidence breakdown */}
+        <div className="card">
+          <div className="card-header"><h3>🎯 Model Confidence</h3></div>
+          <div className="card-body">
+            {predEntries.length > 0 ? predEntries.map(([cls, conf], i) => (
+              <div key={cls} className="pred-row">
+                <span className="pred-label">{cls}</span>
+                <ConfBar value={conf * 100} color={i === 0 ? color : "#94a3b8"} />
+              </div>
+            )) : (
+              <div className="pred-row">
+                <span className="pred-label">{disease}</span>
+                <ConfBar value={confPct} color={color} />
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* XAI Factors */}
+        <div className="card">
+          <div className="card-header"><h3>🤖 XAI Factors</h3></div>
+          <div className="card-body">
+            {[
+              { name: "Confidence Factor", val: severity?.indicators?.confidence },
+              { name: "Area Factor", val: severity?.indicators?.area },
+              { name: "Lesion Factor", val: severity?.indicators?.lesions },
+            ].map(f => (
+              <div key={f.name} className="factor-row">
+                <span className="factor-name">{f.name}</span>
+                <div className="factor-bar-wrap">
+                  <div className="factor-bar-track">
+                    <div className="factor-bar-fill"
+                      style={{ width: `${((f.val || 0) / 4) * 100}%`, background: color }} />
+                  </div>
+                  <span className="factor-score">{f.val ?? "—"}/4</span>
                 </div>
               </div>
             ))}
           </div>
         </div>
-      )}
-
-      {/* Reasoning */}
-      <div className="reasoning-section">
-        <h3>💡 Analysis Explanation</h3>
-        <div className="reasoning-box">
-          <p>{stage4.reasoning}</p>
-        </div>
       </div>
 
       {/* Recommendation */}
-      <div className="recommendation-section">
-        <h3>📋 Recommendation</h3>
-        <div className={`recommendation-box rec-${stage4.level.toLowerCase()}`}>
-          <div className="rec-icon">
-            {stage4.level === 'Healthy' && '✓'}
-            {stage4.level === 'Mild' && '⚠️'}
-            {stage4.level === 'Moderate' && '⚠️'}
-            {stage4.level === 'Severe' && '🔴'}
-            {stage4.level === 'Critical' && '🔴'}
+      <div className="rec-card" style={{ borderLeft: `4px solid ${color}`, background: color + "0d" }}>
+        <div className="rec-icon" style={{ color }}>
+          {sev === "Healthy" ? "✅" : sev === "Critical" ? "🚨" : "⚠️"}
+        </div>
+        <div>
+          <div className="rec-title" style={{ color }}>
+            {sev === "Healthy" ? "Healthy Crop" : `${sev} — Action Required`}
           </div>
-          <div className="rec-content">
-            <div className="rec-title">{stage4.description}</div>
-            <div className="rec-text">
-              {stage4.level === 'Mild' && 'Monitor the plant regularly. Apply preventive measures to prevent disease spread.'}
-              {stage4.level === 'Moderate' && 'Apply recommended fungicides or insecticides immediately. Increase monitoring frequency.'}
-              {stage4.level === 'Severe' && 'Urgent treatment required. Implement integrated pest management (IPM) strategies. Consult agricultural experts if needed.'}
-              {stage4.level === 'Critical' && 'Critical condition! Immediate intervention required. Isolate affected plants. Contact agricultural authorities.'}
-              {stage4.level === 'Healthy' && 'Your crops are healthy! Continue regular monitoring and preventive care.'}
-            </div>
-          </div>
+          <div className="rec-text">{REC_TEXT[sev]}</div>
         </div>
       </div>
 
-      {/* XAI Section */}
-      <div className="xai-section">
-        <h2>🤖 Explainable AI Analysis</h2>
-        <div className="xai-cards">
-          <div className="xai-card">
-            <h4>📊 Detection Factors</h4>
-            <div className="xai-content">
-              {stage4.indicators && (
-                <>
-                  <div className="factor-item">
-                    <span className="factor-name">Confidence Score</span>
-                    <span className="factor-value">{stage4.indicators.confidence}/4</span>
-                  </div>
-                  <div className="factor-item">
-                    <span className="factor-name">Area Score</span>
-                    <span className="factor-value">{stage4.indicators.area}/4</span>
-                  </div>
-                  <div className="factor-item">
-                    <span className="factor-name">Lesion Score</span>
-                    <span className="factor-value">{stage4.indicators.lesions}/4</span>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
+      {/* Reasoning */}
+      {severity?.reasoning && (
+        <div className="reasoning-block">
+          <div className="reasoning-title">💡 Analysis Explanation</div>
+          <div className="reasoning-text">{severity.reasoning}</div>
+        </div>
+      )}
 
-          <div className="xai-card">
-            <h4>🎯 Severity Breakdown</h4>
-            <div className="xai-content">
-              {stage4.details && (
-                <>
-                  <div className="factor-item">
-                    <span className="factor-name">Confidence Factor</span>
-                    <span className="factor-value">{stage4.details.confidence_score.toFixed(2)}</span>
-                  </div>
-                  <div className="factor-item">
-                    <span className="factor-name">Area Factor</span>
-                    <span className="factor-value">{stage4.details.area_score.toFixed(2)}</span>
-                  </div>
-                  <div className="factor-item">
-                    <span className="factor-name">Lesion Factor</span>
-                    <span className="factor-value">{stage4.details.lesion_score.toFixed(2)}</span>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-
-          <div className="xai-card">
-            <h4>📈 Model Confidence</h4>
-            <div className="xai-content">
-              <div className="confidence-visual">
-                <div className="conf-bar">
-                  <div 
-                    className="conf-fill" 
-                    style={{ 
-                      width: `${stage1.confidence * 100}%`,
-                      backgroundColor: getSeverityColor(stage4.level)
-                    }}
-                  ></div>
+      {/* Lesions */}
+      {lesions?.details?.length > 0 && (
+        <div className="card" style={{ marginTop: "20px" }}>
+          <div className="card-header"><h3>🔬 Detected Lesions ({lesions.count})</h3></div>
+          <div className="card-body">
+            <div className="lesions-grid">
+              {lesions.details.map((l, i) => (
+                <div key={i} className="lesion-chip">
+                  <div className="lesion-num">#{i + 1}</div>
+                  <div><span className="lesion-detail">Area: {l.area_percentage}%</span></div>
+                  <div><span className="lesion-detail">Pos: ({l.position?.[0]}, {l.position?.[1]})</span></div>
                 </div>
-                <div className="conf-text">
-                  {stage1.disease} - {(stage1.confidence * 100).toFixed(1)}% confident
-                </div>
-              </div>
+              ))}
             </div>
           </div>
         </div>
-      </div>
+      )}
 
-      {/* Metadata */}
-      <div className="metadata">
-        <div className="metadata-item">
-          <span>Diagnosis ID:</span>
-          <code>{result.diagnosis_id}</code>
-        </div>
-        <div className="metadata-item">
-          <span>Analyzed at:</span>
-          <span>{new Date(result.timestamp).toLocaleString()}</span>
-        </div>
+      {/* Footer meta */}
+      <div className="results-meta">
+        {result.diagnosis_id && <span>ID: <code>{result.diagnosis_id}</code></span>}
+        {result.timestamp && (
+          <span>Analyzed: {new Date(result.timestamp).toLocaleString("en-IN")}</span>
+        )}
       </div>
     </div>
   );

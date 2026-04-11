@@ -154,7 +154,7 @@ def main():
     
     # Start server
     try:
-        start_server()
+        start_server(reload=True)
     except KeyboardInterrupt:
         logger.info("\nServer stopped by user")
         sys.exit(0)

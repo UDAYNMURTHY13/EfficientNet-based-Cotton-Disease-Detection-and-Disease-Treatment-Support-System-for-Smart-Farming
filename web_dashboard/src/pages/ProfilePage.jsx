@@ -1,41 +1,27 @@
-/**
- * Profile Page Component
- * Manage user profile and farm information
- */
-
-import React, { useState, useEffect, useContext } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useContext } from 'react';
 import AuthContext from '../context/AuthContext';
 import APIService from '../services/api';
 import '../styles/profile.css';
 
 function ProfilePage() {
-  const navigate = useNavigate();
   const { user, logout } = useContext(AuthContext);
   const [formData, setFormData] = useState({
-    full_name: user?.name || '',
+    full_name: user?.full_name || user?.name || '',
     phone: user?.phone || '',
-    farm_location: user?.farm_name || '',
-    farm_size_acres: ''
+    farm_location: user?.farm_location || user?.farm_name || '',
+    farm_size_acres: user?.farm_size_acres || '',
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
+  const handleChange = (e) =>
+    setFormData((p) => ({ ...p, [e.target.name]: e.target.value }));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
-    setSuccess('');
+    setError(''); setSuccess('');
     setLoading(true);
-
     try {
       await APIService.updateProfile(formData);
       setSuccess('Profile updated successfully!');
@@ -47,122 +33,89 @@ function ProfilePage() {
     }
   };
 
-  const handleLogout = () => {
-    if (window.confirm('Are you sure you want to logout?')) {
-      logout();
-      navigate('/login');
-    }
-  };
+  const initials = (user?.full_name || user?.name || 'U')
+    .split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
 
   return (
     <div className="profile-page">
-      {/* Header */}
-      <div className="profile-header">
-        <h1>👤 My Profile</h1>
-        <p>Manage your account and farm information</p>
+      <div className="page-header">
+        <div>
+          <h1>My Profile</h1>
+          <p>Manage your account and farm information</p>
+        </div>
       </div>
 
-      <div className="profile-container">
-        <div className="profile-card">
-          <h2>User Information</h2>
+      <div className="profile-layout">
+        {/* Left: avatar + account info */}
+        <div className="profile-sidebar">
+          <div className="card card-body" style={{ textAlign: 'center' }}>
+            <div className="profile-avatar">{initials}</div>
+            <div className="profile-name">{user?.full_name || user?.name || 'Farmer'}</div>
+            <div className="profile-email">{user?.email}</div>
+            <div className="profile-role-badge">{user?.role || 'Farmer'}</div>
+          </div>
 
-          {error && <div className="alert alert-error">{error}</div>}
-          {success && <div className="alert alert-success">{success}</div>}
-
-          <form onSubmit={handleSubmit} className="profile-form">
-            <div className="form-group">
-              <label htmlFor="full_name">Full Name</label>
-              <input
-                type="text"
-                id="full_name"
-                name="full_name"
-                value={formData.full_name}
-                onChange={handleChange}
-                disabled={loading}
-              />
-            </div>
-
-            <div className="form-row">
-              <div className="form-group">
-                <label htmlFor="phone">Phone Number</label>
-                <input
-                  type="tel"
-                  id="phone"
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handleChange}
-                  disabled={loading}
-                />
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="farm_location">Farm Location</label>
-                <input
-                  type="text"
-                  id="farm_location"
-                  name="farm_location"
-                  value={formData.farm_location}
-                  onChange={handleChange}
-                  placeholder="City/District"
-                  disabled={loading}
-                />
-              </div>
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="farm_size_acres">Farm Size (Acres)</label>
-              <input
-                type="number"
-                id="farm_size_acres"
-                name="farm_size_acres"
-                value={formData.farm_size_acres}
-                onChange={handleChange}
-                placeholder="0"
-                step="0.1"
-                disabled={loading}
-              />
-            </div>
-
-            <div className="form-actions">
-              <button 
-                type="submit" 
-                className="btn btn-primary"
-                disabled={loading}
-              >
-                {loading ? 'Updating...' : '✓ Save Changes'}
-              </button>
-            </div>
-          </form>
-        </div>
-
-        {/* Account section */}
-        <div className="profile-card">
-          <h2>Account Settings</h2>
-          
-          <div className="account-info">
-            <div className="info-item">
-              <span className="info-label">Email:</span>
-              <span className="info-value">{user?.email}</span>
-            </div>
-            <div className="info-item">
-              <span className="info-label">Role:</span>
-              <span className="info-value">{user?.role || 'Farmer'}</span>
-            </div>
-            <div className="info-item">
-              <span className="info-label">Account Created:</span>
-              <span className="info-value">
-                {user?.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}
-              </span>
+          <div className="card" style={{ marginTop: '16px' }}>
+            <div className="card-header"><h3>Account Info</h3></div>
+            <div className="card-body">
+              {[
+                { label: 'Email', value: user?.email },
+                { label: 'Role', value: user?.role || 'Farmer' },
+                { label: 'Phone', value: user?.phone || '—' },
+                { label: 'Location', value: user?.farm_location || '—' },
+                { label: 'Farm Size', value: user?.farm_size_acres ? `${user.farm_size_acres} acres` : '—' },
+              ].map(({ label, value }) => (
+                <div key={label} className="info-row">
+                  <span className="info-label">{label}</span>
+                  <span className="info-value">{value}</span>
+                </div>
+              ))}
             </div>
           </div>
 
-          <div className="account-actions">
-            <button 
-              className="btn btn-secondary"
-              onClick={handleLogout}
-            >
-              🚪 Logout
-            </button>
+          <button className="btn btn-danger btn-block" style={{ marginTop: '16px' }}
+            onClick={logout}>
+            Sign out
+          </button>
+        </div>
+
+        {/* Right: edit form */}
+        <div className="card">
+          <div className="card-header"><h3>Edit Profile</h3></div>
+          <div className="card-body">
+            {error   && <div className="alert alert-error">{error}</div>}
+            {success && <div className="alert alert-success">{success}</div>}
+
+            <form onSubmit={handleSubmit}>
+              <div className="form-group">
+                <label>Full Name</label>
+                <input type="text" name="full_name" value={formData.full_name}
+                  onChange={handleChange} placeholder="Your full name" disabled={loading} />
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Phone Number</label>
+                  <input type="tel" name="phone" value={formData.phone}
+                    onChange={handleChange} placeholder="+91 9876543210" disabled={loading} />
+                </div>
+                <div className="form-group">
+                  <label>Farm Location</label>
+                  <input type="text" name="farm_location" value={formData.farm_location}
+                    onChange={handleChange} placeholder="City / District" disabled={loading} />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label>Farm Size (Acres)</label>
+                <input type="number" name="farm_size_acres" value={formData.farm_size_acres}
+                  onChange={handleChange} placeholder="e.g. 5.5" step="0.1" disabled={loading} />
+              </div>
+
+              <button type="submit" className="btn btn-primary" disabled={loading}>
+                {loading ? <><span className="spinner-sm" /> Saving…</> : 'Save Changes'}
+              </button>
+            </form>
           </div>
         </div>
       </div>

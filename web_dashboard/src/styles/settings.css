@@ -1,0 +1,108 @@
+/* ── Settings Page ─────────────────────────────────── */
+.settings-page { padding-bottom: 40px; }
+
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 24px;
+  align-items: start;
+}
+
+.settings-card { height: fit-content; }
+.settings-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  margin-bottom: 12px;
+}
+.settings-hint {
+  font-size: 12px;
+  color: var(--text-light);
+  margin-top: 12px;
+  line-height: 1.5;
+}
+
+/* ── Theme options ── */
+.theme-options {
+  display: flex;
+  gap: 12px;
+}
+.theme-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  padding: 16px 10px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  cursor: pointer;
+  transition: var(--transition);
+  position: relative;
+  color: var(--text);
+  font-family: inherit;
+}
+.theme-option:hover { border-color: var(--primary); background: var(--primary-muted); }
+.theme-option.active {
+  border-color: var(--primary);
+  background: var(--primary-muted);
+  color: var(--primary-dark);
+}
+.theme-icon { font-size: 24px; }
+.theme-label { font-size: 13px; font-weight: 600; }
+.theme-check {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+/* ── Language options ── */
+.lang-options {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+.lang-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  cursor: pointer;
+  transition: var(--transition);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 14px;
+  position: relative;
+}
+.lang-option:hover { border-color: var(--primary); background: var(--primary-muted); }
+.lang-option.active {
+  border-color: var(--primary);
+  background: var(--primary-muted);
+  font-weight: 600;
+}
+.lang-flag { font-size: 20px; }
+.lang-name { flex: 1; }
+.lang-check { font-size: 12px; font-weight: 700; color: var(--primary); }
+
+/* ── Summary ── */
+.settings-summary { background: var(--bg-card); }
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+}
+.summary-row:last-child { border-bottom: none; }
+.summary-key { color: var(--text-muted); }
+.summary-val { font-weight: 600; color: var(--text); }

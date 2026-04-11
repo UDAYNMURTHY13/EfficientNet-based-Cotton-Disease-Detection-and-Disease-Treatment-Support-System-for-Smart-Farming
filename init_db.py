@@ -62,6 +62,39 @@ def init_db():
         return False
 
 
+def seed_demo_user():
+    """Create demo user for testing if it doesn't already exist"""
+    from app.core.database import SessionLocal
+    from app.services.user_service import UserService
+
+    db = SessionLocal()
+    try:
+        existing = UserService.get_user_by_email(db, "test@example.com")
+        if existing:
+            logger.info("✓ Demo user already exists: test@example.com")
+            return True
+
+        UserService.create_user(
+            db=db,
+            email="test@example.com",
+            password="password123",
+            first_name="Demo",
+            last_name="Farmer",
+            phone="+911234567890",
+            role="farmer",
+            location="Demo District",
+        )
+        logger.info("✅ Demo user created  →  test@example.com / password123")
+        return True
+    except Exception as e:
+        logger.error(f"❌ Failed to create demo user: {e}")
+        return False
+    finally:
+        db.close()
+
+
 if __name__ == "__main__":
     success = init_db()
+    if success:
+        seed_demo_user()
     sys.exit(0 if success else 1)

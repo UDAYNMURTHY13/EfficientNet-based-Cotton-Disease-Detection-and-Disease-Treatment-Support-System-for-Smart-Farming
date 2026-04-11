@@ -6,6 +6,7 @@ Handles image upload, disease detection, and analysis history
 from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Query, status
 from fastapi.security import HTTPBearer
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from datetime import datetime
 import uuid
 import os
@@ -205,11 +206,31 @@ async def get_analysis_history(
     return AnalysisHistoryResponse(
         total=total,
         items=[{
+            # Identifiers
             "id": item.id,
+            "image_filename": item.image_filename,
+            # Detection
             "disease_detected": item.disease_detected,
+            "confidence": item.confidence,
+            "confidence_percentage": item.confidence_percentage,
+            # Area & Lesions
+            "affected_area_percentage": item.affected_area_percentage,
+            "lesion_count": item.lesion_count,
+            "lesion_details": item.lesion_details,
+            # Severity
             "severity_level": item.severity_level,
+            "severity_score": item.severity_score,
+            "reasoning": item.reasoning,
+            "recommendation": item.recommendation,
+            "indicators": item.indicators,
+            # Location
+            "latitude": item.latitude,
+            "longitude": item.longitude,
+            "location_accuracy": item.location_accuracy,
+            "environment_conditions": item.environment_conditions,
+            # Meta
+            "inference_time": item.inference_time,
             "analyzed_at": item.analyzed_at,
-            "image_filename": item.image_filename
         } for item in items]
     )
 
@@ -300,6 +321,6 @@ async def get_analysis_stats(
         "disease_types": [d[0] for d in diseases],
         "severity_distribution": severity_counts,
         "avg_confidence": db.query(
-            db.func.avg(Analysis.confidence)
+            func.avg(Analysis.confidence)
         ).filter(Analysis.user_id == current_user.id).scalar() or 0
     }

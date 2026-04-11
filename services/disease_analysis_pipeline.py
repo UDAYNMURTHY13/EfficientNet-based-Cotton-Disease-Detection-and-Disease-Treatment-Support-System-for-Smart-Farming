@@ -343,13 +343,20 @@ class DiseaseAnalysisPipeline:
             logger.info("  Step 1: Disease detection...")
             disease_result = self.detect_disease(image)
             
-            # Step 2a: Affected Area Analysis
+            # Step 2a: Affected Area Analysis (skip for healthy leaves)
             logger.info("  Step 2a: Affected area analysis...")
-            area_result = self.analyze_affected_area(image)
-            
-            # Step 2b: Lesion & Heatmap Analysis
+            is_healthy = disease_result['predicted_class'] == 'Healthy'
+            if is_healthy:
+                area_result = {'affected_percentage': 0.0, 'healthy_percentage': 100.0, 'skipped': True}
+            else:
+                area_result = self.analyze_affected_area(image)
+
+            # Step 2b: Lesion & Heatmap Analysis (skip for healthy leaves)
             logger.info("  Step 2b: Lesion analysis...")
-            lesion_result = self.analyze_lesions(disease_result, area_result)
+            if is_healthy:
+                lesion_result = {'enabled': False, 'skipped': True}
+            else:
+                lesion_result = self.analyze_lesions(disease_result, area_result)
             
             # Step 3: Severity Estimation
             logger.info("  Step 3: Severity estimation...")
@@ -357,18 +364,45 @@ class DiseaseAnalysisPipeline:
             
             inference_time = time.time() - start_time
             
+            # Encode Grad-CAM heatmap overlay if available
+            grad_cam_overlay = None
+            grad_cam_heatmap = None
+            if lesion_result.get('enabled') and lesion_result.get('heatmap') is not None:
+                try:
+                    from services.xai_visualizations import HeatmapVisualizer
+                    heatmap = lesion_result['heatmap']
+                    # Resize original to model input size for overlay
+                    orig_array = np.array(
+                        disease_result['original_image'].resize(self.target_size)
+                    )
+                    # Overlay (jet colormap blended on original)
+                    overlay_arr = HeatmapVisualizer.apply_heatmap_overlay(
+                        orig_array, heatmap, alpha=0.5
+                    )
+                    grad_cam_overlay = 'data:image/png;base64,' + HeatmapVisualizer.image_to_base64(overlay_arr)
+                    # Pure colorized heatmap
+                    heatmap_img = np.array(HeatmapVisualizer.create_heatmap_image(heatmap))
+                    grad_cam_heatmap = 'data:image/png;base64,' + HeatmapVisualizer.image_to_base64(heatmap_img)
+                    logger.info("✓ Grad-CAM heatmap encoded")
+                except Exception as e:
+                    logger.warning(f"Heatmap encoding failed: {e}")
+
             # Compile complete result
             result = {
                 'disease': disease_result['predicted_class'],
                 'confidence': disease_result['confidence'],
                 'confidence_percentage': disease_result['confidence_percentage'],
                 'all_predictions': disease_result['predictions'],
-                'affected_area': area_result.get('affected_percentage'),
+                'affected_area': None if is_healthy else area_result.get('affected_percentage'),
                 'severity': severity_result,
-                'lesion_analysis': {
-                    'count': lesion_result.get('lesion_count', 0),
-                    'details': lesion_result.get('lesion_details', [])
-                } if lesion_result.get('enabled') else None,
+                'lesion_analysis': None if is_healthy else (
+                    {
+                        'count': lesion_result.get('lesion_count', 0),
+                        'details': lesion_result.get('lesion_details', [])
+                    } if lesion_result.get('enabled') else None
+                ),
+                'grad_cam_overlay': None if is_healthy else grad_cam_overlay,
+                'grad_cam_heatmap': None if is_healthy else grad_cam_heatmap,
                 'inference_time': round(inference_time, 3),
                 'xai_available': self.enable_xai
             }
