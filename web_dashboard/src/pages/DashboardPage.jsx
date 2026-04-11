@@ -1,569 +1,178 @@
-import React, { useState, useEffect, useContext, useCallback } from 'react';
-import { DataContext } from '../context/DataContext';
-import { AuthContext } from '../context/AuthContext';
-import { apiService } from '../services/api';
-import ScanService from '../services/ScanService';
-import '../styles/pages.css';
+/**
+ * Dashboard Page Component
+ * Main landing page for authenticated farmers
+ */
 
-const DashboardPage = () => {
-  const { setLoading } = useContext(DataContext);
-  const { user } = useContext(AuthContext);
+import React, { useState, useEffect, useContext } from 'react';
+import { useNavigate } from 'react-router-dom';
+import AuthContext from '../context/AuthContext';
+import APIService from '../services/api';
+import '../styles/dashboard.css';
+
+function DashboardPage() {
+  const navigate = useNavigate();
+  const { user, logout } = useContext(AuthContext);
   const [stats, setStats] = useState(null);
-  const [recentCases, setRecentCases] = useState([]);
-  const [showScanModal, setShowScanModal] = useState(false);
-  const [selectedImage, setSelectedImage] = useState(null);
-  const [scanning, setScanning] = useState(false);
-  const [scanResult, setScanResult] = useState(null);
-  const [showResultModal, setShowResultModal] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  const fetchDashboardData = useCallback(async () => {
-    setLoading(true);
+  useEffect(() => {
+    loadStats();
+  }, []);
+
+  const loadStats = async () => {
     try {
-      const [statsRes, casesRes] = await Promise.all([
-        apiService.getDashboardStats(),
-        apiService.getRecentCases(),
-      ]);
-
-      setStats(statsRes.data);
-      setRecentCases(casesRes.data);
-    } catch (error) {
-      console.error('Failed to fetch dashboard data:', error);
+      const data = await APIService.getAnalysisStats();
+      setStats(data);
+    } catch (err) {
+      setError('Failed to load statistics');
+      console.error(err);
     } finally {
       setLoading(false);
     }
-  }, [setLoading]);
-
-  useEffect(() => {
-    fetchDashboardData();
-  }, [fetchDashboardData]);
-
-  const handleImageUpload = (e) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 10 * 1024 * 1024) {
-        alert('Image size must be less than 10MB');
-        return;
-      }
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setSelectedImage(event.target.result);
-      };
-      reader.readAsDataURL(file);
-    }
   };
 
-  const handleScanSubmit = async () => {
-    if (!selectedImage) {
-      alert('Please select an image first');
-      return;
-    }
+  return (
+    <div className="dashboard-page">
+      {/* Navbar */}
+      <nav className="navbar">
+        <div className="navbar-content">
+          <div className="navbar-logo">🌾 CottonCare AI</div>
+          <div className="navbar-menu">
+            <a href="#" onClick={() => navigate('/analyze')} className="nav-link">
+              📸 Analyze
+            </a>
+            <a href="#" onClick={() => navigate('/history')} className="nav-link">
+              📋 History
+            </a>
+            <a href="#" onClick={() => navigate('/profile')} className="nav-link">
+              👤 Profile
+            </a>
+            <button className="nav-btn btn-secondary" onClick={logout}>
+              Logout
+            </button>
+          </div>
+        </div>
+      </nav>
 
-    setScanning(true);
-    try {
-      // Complete scan processing workflow
-      const result = await ScanService.processScan(selectedImage, {
-        id: user?.id || 'farmer-001',
-        name: user?.name || 'Farmer',
-        email: user?.email || 'farmer@example.com',
-      });
-
-      setScanResult(result);
-      setShowResultModal(true);
-      setShowScanModal(false);
-      setSelectedImage(null);
-      
-      // Add to recent cases
-      const formattedScan = ScanService.formatScanForDisplay(result);
-      setRecentCases([formattedScan, ...recentCases.slice(0, 9)]);
-    } catch (error) {
-      console.error('Scan processing failed:', error);
-      alert('Failed to process scan. Please try again.');
-    } finally {
-      setScanning(false);
-    }
-  };
-
-  // ===== FARMER DASHBOARD =====
-  if (user?.role === 'farmer') {
-
-    return (
-      <div className="page-container">
+      {/* Main Content */}
+      <div className="dashboard-container">
+        {/* Welcome Section */}
         <div className="welcome-section">
-          <h1>👨‍🌾 Welcome, {user?.name}</h1>
-          <p>Monitor your cotton crop health and get instant AI diagnoses</p>
+          <h1>Welcome, {user?.name || 'Farmer'}! 👋</h1>
+          <p>Monitor your cotton crops with AI-powered disease detection</p>
+        </div>
+
+        {/* Quick Stats */}
+        {loading ? (
+          <div className="loading">Loading statistics...</div>
+        ) : stats ? (
+          <div className="stats-grid">
+            <div className="stat-card">
+              <div className="stat-icon">📊</div>
+              <div className="stat-value">{stats.total_analyses || 0}</div>
+              <div className="stat-label">Total Analyses</div>
+            </div>
+
+            <div className="stat-card">
+              <div className="stat-icon">🍃</div>
+              <div className="stat-value">{stats.disease_types?.length || 0}</div>
+              <div className="stat-label">Disease Types Found</div>
+            </div>
+
+            <div className="stat-card">
+              <div className="stat-icon">📈</div>
+              <div className="stat-value">{(stats.avg_confidence * 100).toFixed(0)}%</div>
+              <div className="stat-label">Avg Confidence</div>
+            </div>
+
+            <div className="stat-card">
+              <div className="stat-icon">⚠️</div>
+              <div className="stat-value">{stats.severity_distribution?.Moderate || 0}</div>
+              <div className="stat-label">Moderate Cases</div>
+            </div>
+          </div>
+        ) : null}
+
+        {/* Features Grid */}
+        <div className="features-section">
+          <h2>🎯 Key Features</h2>
+          <div className="features-grid">
+            <div className="feature-card" onClick={() => navigate('/analyze')}>
+              <div className="feature-icon">📸</div>
+              <h3>Analyze Images</h3>
+              <p>Upload or capture cotton leaf images for instant disease detection</p>
+              <span className="feature-arrow">→</span>
+            </div>
+
+            <div className="feature-card" onClick={() => navigate('/history')}>
+              <div className="feature-icon">📋</div>
+              <h3>View History</h3>
+              <p>Browse all your previous analyses and trend over time</p>
+              <span className="feature-arrow">→</span>
+            </div>
+
+            <div className="feature-card" onClick={() => navigate('/profile')}>
+              <div className="feature-icon">⚙️</div>
+              <h3>Settings</h3>
+              <p>Update your profile and farm information</p>
+              <span className="feature-arrow">→</span>
+            </div>
+
+            <div className="feature-card">
+              <div className="feature-icon">📚</div>
+              <h3>Learn More</h3>
+              <p>Access guides on disease management and treatment options</p>
+              <span className="feature-arrow">→</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Info Section */}
+        <div className="info-section">
+          <h2>ℹ️ How It Works</h2>
+          <div className="steps">
+            <div className="step">
+              <div className="step-number">1</div>
+              <h4>Upload Image</h4>
+              <p>Take a photo of your cotton leaf</p>
+            </div>
+            <div className="step">
+              <div className="step-number">2</div>
+              <h4>AI Analysis</h4>
+              <p>Deep learning model detects diseases</p>
+            </div>
+            <div className="step">
+              <div className="step-number">3</div>
+              <h4>Get Results</h4>
+              <p>View detailed diagnosis and recommendations</p>
+            </div>
+            <div className="step">
+              <div className="step-number">4</div>
+              <h4>Take Action</h4>
+              <p>Follow treatment recommendations</p>
+            </div>
+          </div>
+        </div>
+
+        {/* CTA */}
+        <div className="cta-section">
+          <h2>Ready to protect your crops?</h2>
           <button 
-            className="btn-scan-large"
-            onClick={() => setShowScanModal(true)}
+            className="btn btn-primary btn-large"
+            onClick={() => navigate('/analyze')}
           >
-            📸 Scan New Leaf Now
+            🚀 Start Analysis Now
           </button>
         </div>
-
-        {/* Scan Modal */}
-        {showScanModal && (
-          <div className="modal-overlay" onClick={() => setShowScanModal(false)}>
-            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-              <div className="modal-header">
-                <h2>📸 Scan Cotton Leaf</h2>
-                <button className="modal-close" onClick={() => setShowScanModal(false)}>✕</button>
-              </div>
-
-              <div className="modal-body">
-                <div className="upload-section">
-                  {selectedImage ? (
-                    <div className="image-preview">
-                      <img src={selectedImage} alt="Selected leaf" />
-                      <button 
-                        className="btn-change-image"
-                        onClick={() => document.getElementById('imageInput').click()}
-                      >
-                        📷 Change Image
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="upload-area" onClick={() => document.getElementById('imageInput').click()}>
-                      <div className="upload-icon">📸</div>
-                      <h3>Click to upload or drag and drop</h3>
-                      <p>PNG, JPG, GIF up to 10MB</p>
-                    </div>
-                  )}
-
-                  <input
-                    id="imageInput"
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                    style={{ display: 'none' }}
-                  />
-                </div>
-
-                <div className="scan-tips">
-                  <h4>💡 Tips for Best Results</h4>
-                  <ul>
-                    <li>📸 Take clear photos of affected leaves</li>
-                    <li>💡 Use natural light for better clarity</li>
-                    <li>🎯 Focus on the diseased area</li>
-                    <li>📐 Include the full leaf in frame</li>
-                  </ul>
-                </div>
-              </div>
-
-              <div className="modal-footer">
-                <button 
-                  className="btn-secondary"
-                  onClick={() => setShowScanModal(false)}
-                >
-                  Cancel
-                </button>
-                <button 
-                  className="btn-primary"
-                  onClick={handleScanSubmit}
-                  disabled={!selectedImage || scanning}
-                >
-                  {scanning ? '⏳ Processing...' : '✓ Scan & Analyze'}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Scan Result Modal */}
-        {showResultModal && scanResult && (
-          <div className="modal-overlay" onClick={() => setShowResultModal(false)}>
-            <div className="modal-content modal-large" onClick={(e) => e.stopPropagation()}>
-              <div className="modal-header">
-                <h2>📊 AI Analysis Report</h2>
-                <button className="modal-close" onClick={() => setShowResultModal(false)}>✕</button>
-              </div>
-
-              <div className="modal-body">
-                {/* Disease Detection */}
-                <div className={`disease-card severity-${scanResult.report.diseaseDetection.severity.toLowerCase()}`}>
-                  <h3>Detected Disease</h3>
-                  <p className="disease-name">{scanResult.report.diseaseDetection.primaryDisease}</p>
-                  <div className="disease-details">
-                    <span className="confidence">Confidence: <strong>{scanResult.report.diseaseDetection.confidence}</strong></span>
-                    <span className="severity">Severity: <strong>{scanResult.report.diseaseDetection.severity}</strong></span>
-                  </div>
-                  <p className="description">{scanResult.report.diseaseDetection.description}</p>
-                </div>
-
-                {/* Location & Timestamp */}
-                <div className="scan-metadata">
-                  <h4>📍 Scan Information</h4>
-                  <div className="metadata-grid">
-                    <div>
-                      <strong>Scan ID:</strong> {scanResult.scan.scanId}
-                    </div>
-                    <div>
-                      <strong>Timestamp:</strong> {new Date(scanResult.scan.timestamp).toLocaleString()}
-                    </div>
-                    {scanResult.scan.location.latitude && (
-                      <div>
-                        <strong>Location:</strong> {scanResult.scan.location.latitude.toFixed(4)}, {scanResult.scan.location.longitude.toFixed(4)}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Immediate Actions */}
-                <div className="actions-section">
-                  <h4>⚠️ Immediate Actions Required</h4>
-                  <ul className="actions-list">
-                    {scanResult.report.immediateActions.map((action, idx) => (
-                      <li key={idx}>{action}</li>
-                    ))}
-                  </ul>
-                </div>
-
-                {/* Treatment Recommendations */}
-                <div className="treatments-section">
-                  <h4>💊 Treatment Recommendations</h4>
-                  <div className="treatments-grid">
-                    {scanResult.report.treatmentRecommendations.map((treatment, idx) => (
-                      <div key={idx} className="treatment-card">
-                        <h5>{treatment.type}</h5>
-                        <p><strong>Product:</strong> {treatment.product}</p>
-                        <p><strong>Concentration:</strong> {treatment.concentration}</p>
-                        <p><strong>Rate:</strong> {treatment.applicationRate}</p>
-                        <p><strong>Interval:</strong> {treatment.interval}</p>
-                        <p className="effectiveness">Effectiveness: {treatment.effectiveness}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Preventive Measures */}
-                <div className="preventive-section">
-                  <h4>🛡️ Preventive Measures</h4>
-                  <ul className="preventive-list">
-                    {scanResult.report.preventiveMeasures.map((measure, idx) => (
-                      <li key={idx}>{measure}</li>
-                    ))}
-                  </ul>
-                </div>
-
-                {/* Status */}
-                <div className="status-box">
-                  <p>📋 <strong>Status:</strong> {scanResult.verification.status}</p>
-                  <p>This report has been automatically submitted to our expert panel for verification and additional recommendations.</p>
-                </div>
-              </div>
-
-              <div className="modal-footer">
-                <button 
-                  className="btn-secondary"
-                  onClick={() => setShowResultModal(false)}
-                >
-                  Close
-                </button>
-                <button 
-                  className="btn-primary"
-                  onClick={() => {
-                    setShowResultModal(false);
-                    fetchDashboardData();
-                  }}
-                >
-                  View All Scans
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-        
-
-        {/* Farmer Stats */}
-        <div className="stats-grid">
-          <div className="stat-card farmer-stat">
-            <h3>📸 Total Scans</h3>
-            <p className="stat-value">{stats?.totalCases || 0}</p>
-            <p className="stat-label">Scans performed</p>
-          </div>
-          <div className="stat-card farmer-stat">
-            <h3>💊 Diseases Detected</h3>
-            <p className="stat-value">{stats?.diseasesFound || 0}</p>
-            <p className="stat-label">Different diseases found</p>
-          </div>
-          <div className="stat-card farmer-stat">
-            <h3>✓ Verified Scans</h3>
-            <p className="stat-value">{stats?.verifiedCases || 0}</p>
-            <p className="stat-label">Expert confirmed</p>
-          </div>
-          <div className="stat-card farmer-stat">
-            <h3>⚠️ Critical Cases</h3>
-            <p className="stat-value severity-high">{stats?.criticalCases || 0}</p>
-            <p className="stat-label">Need immediate attention</p>
-          </div>
-        </div>
-
-        {/* Recent Scans */}
-        <div className="section">
-          <h2>📋 Your Recent Scans</h2>
-          {recentCases.length > 0 ? (
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Scan Date</th>
-                  <th>Disease Detected</th>
-                  <th>Severity</th>
-                  <th>Confidence</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentCases.map((caseItem) => (
-                  <tr key={caseItem.id}>
-                    <td>{new Date(caseItem.createdAt).toLocaleDateString()}</td>
-                    <td>{caseItem.disease}</td>
-                    <td>
-                      <span className={`severity-${caseItem.severity.toLowerCase()}`}>
-                        {caseItem.severity}
-                      </span>
-                    </td>
-                    <td>{(caseItem.confidence * 100).toFixed(1)}%</td>
-                    <td>{caseItem.verified ? '✓ Verified' : '⏳ Pending'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : (
-            <p className="empty-state">No scans yet. Start by taking a photo of a cotton leaf!</p>
-          )}
-        </div>
-
-        {/* Tips */}
-        <div className="info-section">
-          <h3>💡 Quick Tips</h3>
-          <ul>
-            <li>📸 Take clear photos of affected leaves in natural light</li>
-            <li>🎯 Focus on the diseased area for better diagnosis</li>
-            <li>📊 View your history to track disease patterns</li>
-            <li>💬 Get expert feedback on your scans</li>
-          </ul>
-        </div>
       </div>
-    );
-  }
 
-  // ===== EXPERT DASHBOARD =====
-  if (user?.role === 'expert') {
-    return (
-      <div className="page-container">
-        <div className="welcome-section">
-          <h1>👨‍⚕️ Expert Dashboard</h1>
-          <p>Verify diagnoses and provide expert feedback to farmers</p>
-        </div>
-
-        {/* Expert Stats */}
-        <div className="stats-grid">
-          <div className="stat-card expert-stat">
-            <h3>⏳ Pending Verification</h3>
-            <p className="stat-value">{stats?.pendingVerification || 0}</p>
-            <p className="stat-label">Awaiting your review</p>
-          </div>
-          <div className="stat-card expert-stat">
-            <h3>✓ Verified Cases</h3>
-            <p className="stat-value">{stats?.verifiedCases || 0}</p>
-            <p className="stat-label">Cases reviewed</p>
-          </div>
-          <div className="stat-card expert-stat">
-            <h3>📊 Accuracy Rate</h3>
-            <p className="stat-value">{stats?.successRate || 0}%</p>
-            <p className="stat-label">AI model accuracy</p>
-          </div>
-          <div className="stat-card expert-stat">
-            <h3>⚠️ Critical Cases</h3>
-            <p className="stat-value severity-high">{stats?.criticalCases || 0}</p>
-            <p className="stat-label">High severity cases</p>
-          </div>
-        </div>
-
-        {/* Cases Needing Verification */}
-        <div className="section">
-          <h2>🔍 Cases Pending Your Review</h2>
-          {recentCases.filter(c => !c.verified).length > 0 ? (
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Case ID</th>
-                  <th>Farmer</th>
-                  <th>Disease</th>
-                  <th>AI Confidence</th>
-                  <th>Severity</th>
-                  <th>Date</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentCases.filter(c => !c.verified).map((caseItem) => (
-                  <tr key={caseItem.id}>
-                    <td>{caseItem.id}</td>
-                    <td>{caseItem.farmerName}</td>
-                    <td>{caseItem.disease}</td>
-                    <td>{(caseItem.confidence * 100).toFixed(1)}%</td>
-                    <td>
-                      <span className={`severity-${caseItem.severity.toLowerCase()}`}>
-                        {caseItem.severity}
-                      </span>
-                    </td>
-                    <td>{new Date(caseItem.createdAt).toLocaleDateString()}</td>
-                    <td><a href="/verification" className="btn-small">Review</a></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : (
-            <p className="empty-state">All cases have been reviewed! ✓</p>
-          )}
-        </div>
-
-        {/* Your Verification History */}
-        <div className="section">
-          <h2>✓ Your Recent Verifications</h2>
-          {recentCases.filter(c => c.verified).length > 0 ? (
-            <table className="table compact">
-              <thead>
-                <tr>
-                  <th>Case ID</th>
-                  <th>Disease</th>
-                  <th>Verified</th>
-                  <th>Your Decision</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentCases.filter(c => c.verified).slice(0, 5).map((caseItem) => (
-                  <tr key={caseItem.id}>
-                    <td>{caseItem.id}</td>
-                    <td>{caseItem.disease}</td>
-                    <td>{new Date(caseItem.verifiedAt).toLocaleDateString()}</td>
-                    <td><span className="verified-badge">✓ Approved</span></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : (
-            <p className="empty-state">No verified cases yet</p>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  // ===== ADMIN DASHBOARD =====
-  if (user?.role === 'admin') {
-    return (
-      <div className="page-container">
-        <div className="welcome-section">
-          <h1>👨‍💼 System Administration Dashboard</h1>
-          <p>Monitor and manage the entire CottonCare system</p>
-        </div>
-
-        {/* Admin Stats */}
-        <div className="stats-grid">
-          <div className="stat-card admin-stat">
-            <h3>📊 Total Cases</h3>
-            <p className="stat-value">{stats?.totalCases || 0}</p>
-            <p className="stat-label">System-wide scans</p>
-          </div>
-          <div className="stat-card admin-stat">
-            <h3>⏳ Pending Verification</h3>
-            <p className="stat-value">{stats?.pendingVerification || 0}</p>
-            <p className="stat-label">Awaiting expert review</p>
-          </div>
-          <div className="stat-card admin-stat">
-            <h3>👥 Active Users</h3>
-            <p className="stat-value">{stats?.activeUsers || 0}</p>
-            <p className="stat-label">Farmers, experts & admins</p>
-          </div>
-          <div className="stat-card admin-stat">
-            <h3>📈 System Accuracy</h3>
-            <p className="stat-value">{stats?.successRate || 0}%</p>
-            <p className="stat-label">Overall model performance</p>
-          </div>
-        </div>
-
-        {/* System Overview */}
-        <div className="stats-grid">
-          <div className="stat-card admin-stat">
-            <h3>🌾 Farmers</h3>
-            <p className="stat-value">{stats?.farmerCount || 0}</p>
-            <p className="stat-label">Registered farmers</p>
-          </div>
-          <div className="stat-card admin-stat">
-            <h3>👨‍⚕️ Experts</h3>
-            <p className="stat-value">{stats?.expertCount || 0}</p>
-            <p className="stat-label">Active experts</p>
-          </div>
-          <div className="stat-card admin-stat">
-            <h3>⚠️ Critical Cases</h3>
-            <p className="stat-value severity-high">{stats?.criticalCases || 0}</p>
-            <p className="stat-label">High severity alerts</p>
-          </div>
-          <div className="stat-card admin-stat">
-            <h3>🔒 Security</h3>
-            <p className="stat-value">Active</p>
-            <p className="stat-label">System secure</p>
-          </div>
-        </div>
-
-        {/* Recent System Activity */}
-        <div className="section">
-          <h2>📋 All Recent Cases</h2>
-          {recentCases.length > 0 ? (
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Case ID</th>
-                  <th>Farmer</th>
-                  <th>Disease</th>
-                  <th>Severity</th>
-                  <th>Date</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentCases.map((caseItem) => (
-                  <tr key={caseItem.id}>
-                    <td>{caseItem.id}</td>
-                    <td>{caseItem.farmerName}</td>
-                    <td>{caseItem.disease}</td>
-                    <td>
-                      <span className={`severity-${caseItem.severity.toLowerCase()}`}>
-                        {caseItem.severity}
-                      </span>
-                    </td>
-                    <td>{new Date(caseItem.createdAt).toLocaleDateString()}</td>
-                    <td>{caseItem.verified ? '✓ Verified' : '⏳ Pending'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : (
-            <p className="empty-state">No cases in the system yet</p>
-          )}
-        </div>
-
-        {/* Quick Management Links */}
-        <div className="info-section admin-quick-links">
-          <h3>⚙️ Quick Actions</h3>
-          <ul>
-            <li><a href="/users">Manage Users</a> - Add, edit, or remove users</li>
-            <li><a href="/verification">Verify Cases</a> - Review pending cases</li>
-            <li><a href="/analytics">View Analytics</a> - System performance metrics</li>
-            <li><a href="/settings">System Settings</a> - Configure the system</li>
-          </ul>
-        </div>
-      </div>
-    );
-  }
-
-  // Default fallback
-  return (
-    <div className="page-container">
-      <h1>Dashboard</h1>
-      <p>Loading...</p>
+      {/* Footer */}
+      <footer className="dashboard-footer">
+        <p>CottonCare AI v3.0 | Powered by Advanced Machine Learning</p>
+      </footer>
     </div>
   );
-};
+}
 
 export default DashboardPage;

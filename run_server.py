@@ -10,7 +10,6 @@ import logging
 from pathlib import Path
 
 # Add paths for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'services'))
 sys.path.insert(0, os.path.dirname(__file__))
 
 # Setup logging
@@ -24,29 +23,38 @@ def check_dependencies():
     """Verify all required packages are installed"""
     logger.info("Checking dependencies...")
     
-    required_modules = [
-        'fastapi',
-        'uvicorn',
-        'tensorflow',
-        'pydantic',
-        'PIL',
-        'cv2',
-        'numpy'
-    ]
+    required_modules = {
+        'fastapi': True,  # Hard requirement
+        'uvicorn': True,
+        'tensorflow': False,  # Soft - loaded on demand, may fail due to cv2 numpy issue
+        'pydantic': True,
+        'PIL': True,
+        'cv2': False,  # Soft requirement (image processing, optional for API)
+        'numpy': True
+    }
     
-    missing = []
-    for module in required_modules:
+    missing_hard = []
+    missing_soft = []
+    
+    for module, is_required in required_modules.items():
         try:
             __import__(module)
-        except ImportError:
-            missing.append(module)
+        except (ImportError, AttributeError, Exception) as e:  # Catch all exceptions including AttributeError from cv2+numpy issue
+            if is_required:
+                missing_hard.append(module)
+            else:
+                missing_soft.append(module)
     
-    if missing:
-        logger.error(f"Missing dependencies: {', '.join(missing)}")
+    if missing_hard:
+        logger.error(f"Missing REQUIRED dependencies: {', '.join(missing_hard)}")
         logger.error("Install with: pip install -r requirements.txt")
         return False
     
-    logger.info("✓ All dependencies installed")
+    if missing_soft:
+        logger.warning(f"Missing optional dependencies (some features may not work): {', '.join(missing_soft)}")
+        logger.warning("Install full dependencies with: pip install -r requirements.txt")
+    
+    logger.info("✓ All required dependencies installed")
     return True
 
 
@@ -54,7 +62,7 @@ def check_model():
     """Verify model file exists"""
     logger.info("Checking model file...")
     
-    model_path = Path('cotton_model_final.keras')
+    model_path = Path('services/cotton_model_final.keras')
     if not model_path.exists():
         logger.error(f"Model file not found: {model_path}")
         return False
@@ -69,23 +77,26 @@ def check_xai_modules():
 
     services_dir = Path(__file__).parent / 'services'
     
-    required_files = [
-        'xai_explainer.py',
-        'xai_visualizations.py',
-        'model_service.py',
-        'severity_engine.py'
-    ]
+    required_paths = {
+        'model_service.py': 'Disease Detection Model Service',
+        'severity_engine.py': 'Severity Analysis Engine',
+        'xai_explainer.py': 'XAI Explainer',
+        'xai_visualizations.py': 'XAI Visualizations',
+        'api_xai.py': 'XAI API Endpoints',
+        'db_operations.py': 'Database Operations',
+        'disease_analysis_pipeline.py': 'Disease Analysis Pipeline'
+    }
     
     missing = []
-    for filename in required_files:
-        if not (services_dir / filename).exists():
-            missing.append(filename)
+    for filepath, name in required_paths.items():
+        if not (services_dir / filepath).exists():
+            missing.append(f"{name} ({filepath})")
     
     if missing:
-        logger.error(f"Missing XAI files: {', '.join(missing)}")
+        logger.error(f"Missing modules:\n  - {chr(10).join(['  - ' + m for m in missing])}")
         return False
     
-    logger.info("✓ All XAI modules available")
+    logger.info("✓ All service modules available")
     return True
 
 
@@ -96,10 +107,15 @@ def start_server(host='0.0.0.0', port=8000, reload=False):
     logger.info(f"Starting FastAPI server on {host}:{port}")
     logger.info("API Documentation: http://localhost:8000/docs")
     logger.info("Alternative Docs: http://localhost:8000/redoc")
+    logger.info("Main endpoints:")
+    logger.info("  - POST /analyze - Full integrated analysis")
+    logger.info("  - POST /predict - Quick prediction only")
+    logger.info("  - GET /health - Health check")
+    logger.info("  - GET /info - API information")
     logger.info("Press Ctrl+C to stop the server")
     
     uvicorn.run(
-        'api_xai:app',
+        'app.main:app',
         host=host,
         port=port,
         reload=reload,

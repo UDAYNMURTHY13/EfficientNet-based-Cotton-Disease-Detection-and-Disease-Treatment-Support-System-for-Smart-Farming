@@ -86,6 +86,7 @@ def decode_token(token: str) -> Optional[TokenData]:
         role: str = payload.get("role")
         
         if user_id is None:
+            logger.error(f"Token payload missing 'sub': {payload.keys()}")
             return None
         
         return TokenData(user_id=user_id, email=email, role=role)
@@ -93,8 +94,11 @@ def decode_token(token: str) -> Optional[TokenData]:
     except jwt.ExpiredSignatureError:
         logger.debug("Token has expired")
         return None
-    except jwt.InvalidTokenError:
-        logger.debug("Invalid token")
+    except jwt.InvalidTokenError as e:
+        logger.error(f"Invalid token: {str(e)}")
+        return None
+    except Exception as e:
+        logger.error(f"Unexpected error decoding token: {str(e)}")
         return None
 
 

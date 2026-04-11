@@ -54,14 +54,14 @@ def set_sqlite_pragma(dbapi_connection, connection_record):
 
 def init_db():
     """Initialize database - create all tables"""
-    from app.models import Base
+    from app.models.db_models import Base
     Base.metadata.create_all(bind=engine)
     logger.info("Database tables created successfully")
 
 
 def drop_db():
     """Drop all tables (for development/testing only)"""
-    from app.models import Base
+    from app.models.db_models import Base
     Base.metadata.drop_all(bind=engine)
     logger.warning("All database tables dropped")
 

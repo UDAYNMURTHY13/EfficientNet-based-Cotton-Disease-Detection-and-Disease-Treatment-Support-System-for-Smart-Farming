@@ -3,7 +3,8 @@ Authentication routes and endpoints
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthCredentials
+from fastapi.security import HTTPBearer
+from http import HTTPStatus
 from sqlalchemy.orm import Session
 from datetime import timedelta
 from typing import Optional
@@ -12,9 +13,10 @@ from app.core.database import get_db
 from app.core.security import (
     create_access_token, create_refresh_token, decode_token, validate_password_strength
 )
-from app.models import User
+from app.models.db_models import User
 from app.schemas import (
-    UserRegisterRequest, UserLoginRequest, TokenResponse, UserResponse
+    UserRegisterRequest, UserLoginRequest, TokenResponse, UserResponse, 
+    UserCompleteProfileRequest
 )
 from app.services.user_service import UserService
 import logging
@@ -26,7 +28,7 @@ security = HTTPBearer()
 
 
 def get_current_user(
-    credentials: HTTPAuthCredentials = Depends(security),
+    credentials = Depends(security),
     db: Session = Depends(get_db)
 ) -> User:
     """Get current authenticated user from JWT token"""
@@ -55,7 +57,7 @@ async def register(
     request: UserRegisterRequest,
     db: Session = Depends(get_db)
 ):
-    """Register a new user"""
+    """Register a new user (Quick onboarding with 5 fields)"""
     
     # Validate password strength
     is_strong, message = validate_password_strength(request.password)
@@ -78,11 +80,10 @@ async def register(
             db=db,
             email=request.email,
             password=request.password,
-            full_name=request.full_name,
+            first_name=request.first_name,
             phone=request.phone,
-            role=request.role,
-            farm_location=request.farm_location,
-            farm_size_acres=request.farm_size_acres
+            location=request.location,
+            role="farmer"  # Default to farmer role
         )
         
         logger.info(f"New user registered: {request.email}")
@@ -116,7 +117,7 @@ async def login(
     token_data = {
         "sub": str(user.id),
         "email": user.email,
-        "role": user.role.value
+        "role": user.role
     }
     
     access_token = create_access_token(token_data)
@@ -197,3 +198,44 @@ async def logout(
     """Logout (client-side token cleanup)"""
     logger.info(f"User logged out: {current_user.email}")
     return {"message": "Logged out successfully"}
+
+
+@router.post("/profile/complete", response_model=UserResponse, status_code=status.HTTP_200_OK)
+async def complete_profile(
+    request: UserCompleteProfileRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Complete user profile (Progressive onboarding - Step 2-5)"""
+    
+    try:
+        # Update user with complete profile data
+        for field, value in request.dict(exclude_none=True).items():
+            if hasattr(current_user, field):
+                setattr(current_user, field, value)
+        
+        # Calculate profile completion percentage (rough estimate)
+        # Count non-null fields / total fields * 100
+        profile_fields = [
+            'first_name', 'last_name', 'age', 'phone', 'village_town', 'taluk_block',
+            'district', 'state', 'pincode', 'latitude', 'longitude', 'farm_name',
+            'total_land_acres', 'num_cotton_fields', 'soil_type', 'irrigation_source',
+            'cotton_variety', 'sowing_date', 'current_season', 'farming_experience_years',
+            'past_disease_history', 'pesticide_usage_habits', 'notification_preference'
+        ]
+        completed_fields = sum(1 for field in profile_fields if getattr(current_user, field, None) is not None)
+        current_user.profile_completion = min(100, int((completed_fields / len(profile_fields)) * 100))
+        
+        db.commit()
+        db.refresh(current_user)
+        
+        logger.info(f"User profile completed: {current_user.email} ({current_user.profile_completion}% complete)")
+        return current_user
+    
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Profile completion error for user {current_user.email}: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to complete profile: {str(e)}"
+        )

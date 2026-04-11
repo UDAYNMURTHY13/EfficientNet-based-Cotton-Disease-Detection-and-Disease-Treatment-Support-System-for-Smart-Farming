@@ -1,5 +1,6 @@
 """
-Pydantic models for request/response validation
+Comprehensive Pydantic models for CottonCare AI
+Request/response validation and schemas
 """
 
 from pydantic import BaseModel, EmailStr, Field, validator
@@ -10,30 +11,94 @@ import uuid
 
 
 # ============================================================================
-# Authentication Schemas
+# ENUMS
 # ============================================================================
 
 class UserRole(str, Enum):
+    """User role enumeration"""
     FARMER = "farmer"
     EXPERT = "expert"
     ADMIN = "admin"
 
 
+class SeverityLevel(str, Enum):
+    """Severity level enumeration"""
+    HEALTHY = "Healthy"
+    MILD = "Mild"
+    MODERATE = "Moderate"
+    SEVERE = "Severe"
+    CRITICAL = "Critical"
+
+
+# ============================================================================
+# AUTHENTICATION SCHEMAS
+# ============================================================================
+
 class UserRegisterRequest(BaseModel):
-    """User registration request"""
+    """User registration request - Quick onboarding (5 fields)"""
     email: EmailStr
     password: str
-    full_name: str
-    phone: Optional[str] = None
-    role: UserRole = UserRole.FARMER
-    farm_location: Optional[str] = None
-    farm_size_acres: Optional[float] = None
+    first_name: str
+    phone: str
+    location: str = None  # Will be auto-filled from GPS if possible
+
+
+class UserCompleteProfileRequest(BaseModel):
+    """Complete user profile - Progressive data collection"""
+    # Personal Information
+    first_name: str
+    last_name: Optional[str] = None
+    age: Optional[int] = None
+    preferred_language: str = "en"
     
-    @validator("password")
-    def validate_password(cls, v):
-        if len(v) < 8:
-            raise ValueError("Password must be at least 8 characters")
-        return v
+    # Location Details
+    village_town: Optional[str] = None
+    taluk_block: Optional[str] = None
+    district: Optional[str] = None
+    state: Optional[str] = None
+    pincode: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    
+    # Farm Information
+    farm_name: Optional[str] = None
+    total_land_acres: Optional[float] = None
+    num_cotton_fields: Optional[int] = None
+    soil_type: Optional[str] = None  # black, red, sandy, loamy
+    irrigation_source: Optional[str] = None  # rain-fed, borewell, canal
+    
+    # Cotton Cultivation
+    cotton_variety: Optional[str] = None  # Bt, hybrid, desi
+    sowing_date: Optional[datetime] = None
+    current_season: Optional[str] = None  # summer, monsoon, winter
+    
+    # Experience & History
+    farming_experience_years: Optional[int] = None
+    past_disease_history: Optional[str] = None
+    pesticide_usage_habits: Optional[str] = None  # organic, chemical, mixed
+    
+    # Preferences
+    notification_preference: str = "in_app"  # sms, whatsapp, in_app
+
+
+class UserResponse(BaseModel):
+    """User response (non-sensitive)"""
+    id: str
+    email: str
+    first_name: Optional[str]
+    last_name: Optional[str]
+    phone: Optional[str]
+    role: str
+    farm_name: Optional[str]
+    district: Optional[str]
+    state: Optional[str]
+    total_land_acres: Optional[float]
+    farming_experience_years: Optional[int]
+    profile_completion: int
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
 
 
 class UserLoginRequest(BaseModel):
@@ -52,17 +117,15 @@ class TokenResponse(BaseModel):
 
 class UserResponse(BaseModel):
     """User response (non-sensitive)"""
-    id: uuid.UUID
+    id: str
     email: str
-    full_name: Optional[str]
+    first_name: Optional[str]
+    last_name: Optional[str]
     phone: Optional[str]
-    role: UserRole
-    farm_location: Optional[str]
-    farm_size_acres: Optional[float]
+    role: str
     is_active: bool
-    email_verified: bool
     created_at: datetime
-    last_login: Optional[datetime]
+    profile_completion: Optional[int]
     
     class Config:
         from_attributes = True
@@ -280,3 +343,66 @@ class ValidationErrorResponse(BaseModel):
     status_code: int = 422
     message: str = "Validation failed"
     errors: List[Dict[str, str]]
+
+
+# ============================================================================
+# Analysis Schemas
+# ============================================================================
+
+class LocationAnalysisRequest(BaseModel):
+    """Location data for analysis - Captured during image upload"""
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    location_accuracy: Optional[float] = None  # Accuracy in meters
+    environment_conditions: Optional[str] = None  # Weather notes
+
+
+class AnalysisDetailResponse(BaseModel):
+    """Detailed analysis response with location data"""
+    id: uuid.UUID
+    user_id: uuid.UUID
+    disease: str
+    confidence: float
+    severity: str
+    affected_area_percentage: Optional[float]
+    latitude: Optional[float]
+    longitude: Optional[float]
+    location_accuracy: Optional[float]
+    environment_conditions: Optional[str]
+    xai_available: bool
+    inference_time_ms: float
+    image_path: Optional[str]
+    created_at: datetime
+    updated_at: Optional[datetime]
+    
+    class Config:
+        from_attributes = True
+
+
+class AnalysisListResponse(BaseModel):
+    """Analysis list response with pagination"""
+    analyses: List[AnalysisDetailResponse]
+    total_count: int
+    page: int
+    page_size: int
+    has_more: bool
+
+
+class AnalysisResponse(BaseModel):
+    """Analysis response - Returned from analyze endpoint"""
+    diagnosis_id: uuid.UUID
+    analysis: Dict[str, Any]  # Full 4-stage pipeline results
+    inference_time: float
+    timestamp: str
+    
+    class Config:
+        from_attributes = True
+
+
+class AnalysisHistoryResponse(BaseModel):
+    """Analysis history response - List of past analyses"""
+    total: int
+    items: List[Dict[str, Any]]
+    
+    class Config:
+        from_attributes = True

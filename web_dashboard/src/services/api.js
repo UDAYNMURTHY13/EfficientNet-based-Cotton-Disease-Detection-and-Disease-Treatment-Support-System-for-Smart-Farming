@@ -1,82 +1,136 @@
-import axios from 'axios';
+/**
+ * API Service
+ * Handles all API communication with backend
+ */
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
-const axiosInstance = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: parseInt(process.env.REACT_APP_API_TIMEOUT || '30000'),
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
-
-// Add token to requests
-axiosInstance.interceptors.request.use((config) => {
-  const token = localStorage.getItem('authToken');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+class APIService {
+  constructor() {
+    this.baseURL = API_BASE_URL;
   }
-  return config;
-});
 
-// Handle errors
-axiosInstance.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('authToken');
-      window.location.href = '/login';
+  getAuthHeader() {
+    const token = localStorage.getItem('token');
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  }
+
+  // ============================================================================
+  // AUTHENTICATION
+  // ============================================================================
+
+  async signup(data) {
+    const response = await fetch(`${this.baseURL}/auth/signup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    return response.json();
+  }
+
+  async login(email, password) {
+    const response = await fetch(`${this.baseURL}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    return response.json();
+  }
+
+  async getProfile() {
+    const response = await fetch(`${this.baseURL}/auth/me`, {
+      headers: { ...this.getAuthHeader() }
+    });
+    return response.json();
+  }
+
+  async updateProfile(data) {
+    const response = await fetch(`${this.baseURL}/auth/profile`, {
+      method: 'PUT',
+      headers: { 
+        'Content-Type': 'application/json',
+        ...this.getAuthHeader()
+      },
+      body: JSON.stringify(data)
+    });
+    return response.json();
+  }
+
+  // ============================================================================
+  // ANALYSIS
+  // ============================================================================
+
+  async uploadImage(file) {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const response = await fetch(`${this.baseURL}/analysis/analyze`, {
+      method: 'POST',
+      headers: this.getAuthHeader(),
+      body: formData
+    });
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Upload failed');
     }
-    return Promise.reject(error);
+    
+    return response.json();
   }
-);
 
-export const apiService = {
-  // Dashboard endpoints
-  getDashboardStats: () => axiosInstance.get('/api/dashboard/stats'),
-  getRecentCases: () => axiosInstance.get('/api/dashboard/recent'),
-  getAnalyticsData: () => axiosInstance.get('/api/dashboard/analytics'),
+  async getAnalysisHistory(page = 1, pageSize = 10) {
+    const response = await fetch(
+      `${this.baseURL}/analysis/history?page=${page}&page_size=${pageSize}`,
+      {
+        headers: this.getAuthHeader()
+      }
+    );
+    return response.json();
+  }
 
-  // Cases endpoints
-  getAllCases: (params) => axiosInstance.get('/api/cases', { params }),
-  getCaseDetails: (id) => axiosInstance.get(`/api/cases/${id}`),
-  verifyCases: (caseId, data) => axiosInstance.put(`/api/cases/${caseId}/verify`, data),
-  addFeedback: (caseId, feedback) =>
-    axiosInstance.post(`/api/cases/${caseId}/feedback`, feedback),
+  async getAnalysisDetail(analysisId) {
+    const response = await fetch(
+      `${this.baseURL}/analysis/history/${analysisId}`,
+      {
+        headers: this.getAuthHeader()
+      }
+    );
+    return response.json();
+  }
 
-  // Scan & Disease Prediction endpoints (NEW)
-  uploadScan: (formData) => axiosInstance.post('/api/scans/upload', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' }
-  }),
-  predictDisease: (scanId, imageData) => 
-    axiosInstance.post(`/api/scans/${scanId}/predict`, { imageData }),
-  getScanReport: (scanId) => axiosInstance.get(`/api/scans/${scanId}/report`),
-  submitForVerification: (scanId, reportData) =>
-    axiosInstance.post(`/api/scans/${scanId}/submit-verification`, reportData),
-  getFarmerScans: (farmerId, params) => 
-    axiosInstance.get(`/api/farmers/${farmerId}/scans`, { params }),
-  getScanHistory: (params) => axiosInstance.get('/api/scans/history', { params }),
-  updateScanStatus: (scanId, status) =>
-    axiosInstance.put(`/api/scans/${scanId}/status`, { status }),
+  async deleteAnalysis(analysisId) {
+    const response = await fetch(
+      `${this.baseURL}/analysis/history/${analysisId}`,
+      {
+        method: 'DELETE',
+        headers: this.getAuthHeader()
+      }
+    );
+    return response.json();
+  }
 
-  // Users endpoints
-  getUsers: (params) => axiosInstance.get('/api/users', { params }),
-  createUser: (data) => axiosInstance.post('/api/users', data),
-  updateUser: (id, data) => axiosInstance.put(`/api/users/${id}`, data),
-  deleteUser: (id) => axiosInstance.delete(`/api/users/${id}`),
+  async getAnalysisStats() {
+    const response = await fetch(
+      `${this.baseURL}/analysis/stats`,
+      {
+        headers: this.getAuthHeader()
+      }
+    );
+    return response.json();
+  }
 
-  // Analytics endpoints
-  getDiseaseDistribution: () => axiosInstance.get('/api/analytics/diseases'),
-  getRegionalStats: () => axiosInstance.get('/api/analytics/regions'),
-  getTrends: (period) => axiosInstance.get(`/api/analytics/trends?period=${period}`),
+  // ============================================================================
+  // HEALTH
+  // ============================================================================
 
-  // Auth endpoints
-  login: (credentials) => axiosInstance.post('/api/auth/login', credentials),
-  logout: () => axiosInstance.post('/api/auth/logout'),
-  refreshToken: () => axiosInstance.post('/api/auth/refresh'),
+  async healthCheck() {
+    try {
+      const response = await fetch(`${this.baseURL}/health`);
+      return response.ok;
+    } catch {
+      return false;
+    }
+  }
+}
 
-  // Health check
-  healthCheck: () => axiosInstance.get('/health'),
-};
-
-export default axiosInstance;
+export default new APIService();

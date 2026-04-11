@@ -3,7 +3,7 @@ User management and authentication service
 """
 
 from sqlalchemy.orm import Session
-from app.models import User, UserRole
+from app.models.db_models import User
 from app.core.security import hash_password, verify_password
 from typing import Optional
 import uuid
@@ -20,13 +20,15 @@ class UserService:
         db: Session,
         email: str,
         password: str,
-        full_name: str,
+        first_name: str = None,
         phone: Optional[str] = None,
-        role: UserRole = UserRole.FARMER,
-        farm_location: Optional[str] = None,
-        farm_size_acres: Optional[float] = None
+        role: Optional[str] = "farmer",
+        last_name: Optional[str] = None,
+        location: Optional[str] = None,
+        full_name: Optional[str] = None,  # For backward compatibility
+        **kwargs  # Accept additional fields for progressive profile updates
     ) -> User:
-        """Create a new user"""
+        """Create a new user (quick registration with minimal fields)"""
         
         # Check if user already exists
         existing_user = db.query(User).filter(User.email == email).first()
@@ -36,17 +38,24 @@ class UserService:
         # Hash password
         password_hash = hash_password(password)
         
-        # Create user
+        # Handle name mapping (full_name or first_name/last_name)
+        if full_name and not first_name:
+            name_parts = full_name.split(" ", 1)
+            first_name = name_parts[0]
+            last_name = name_parts[1] if len(name_parts) > 1 else None
+        
+        # Create user with quick registration (5 fields minimum)
         user = User(
-            id=uuid.uuid4(),
+            id=str(uuid.uuid4()),
             email=email,
             password_hash=password_hash,
-            full_name=full_name,
+            first_name=first_name,
+            last_name=last_name,
             phone=phone,
             role=role,
-            farm_location=farm_location,
-            farm_size_acres=farm_size_acres,
-            is_active=True
+            is_active=True,
+            profile_completion=20,  # 20% after quick signup
+            **kwargs  # Accept any additional fields passed
         )
         
         db.add(user)
@@ -85,7 +94,7 @@ class UserService:
     @staticmethod
     def get_user_list(
         db: Session,
-        role: Optional[UserRole] = None,
+        role: Optional[str] = None,
         is_active: Optional[bool] = None,
         skip: int = 0,
         limit: int = 100
@@ -110,16 +119,26 @@ class UserService:
         user_id: str,
         **kwargs
     ) -> Optional[User]:
-        """Update user"""
+        """Update user profile fields"""
         user = UserService.get_user_by_id(db, user_id)
         
         if not user:
             return None
         
-        # Allow updating specific fields
+        # Allow updating comprehensive agricultural profile fields
         allowed_fields = {
-            'full_name', 'phone', 'farm_location',
-            'farm_size_acres', 'is_active', 'email_verified'
+            # Personal
+            'first_name', 'last_name', 'phone', 'age', 'date_of_birth', 'preferred_language',
+            # Location
+            'village_town', 'taluk_block', 'district', 'state', 'pincode', 'latitude', 'longitude',
+            # Farm
+            'farm_name', 'total_land_acres', 'num_cotton_fields', 'soil_type', 'irrigation_source',
+            # Cultivation
+            'cotton_variety', 'sowing_date', 'current_season',
+            # Experience
+            'farming_experience_years', 'past_disease_history', 'pesticide_usage_habits',
+            # Preferences
+            'notification_preference', 'profile_completion', 'is_active'
         }
         
         for key, value in kwargs.items():

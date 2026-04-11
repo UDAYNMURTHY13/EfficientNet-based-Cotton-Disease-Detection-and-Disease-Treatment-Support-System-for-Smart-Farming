@@ -1,0 +1,197 @@
+/**
+ * Analyze Page CSS
+ * Image upload, camera, and preview styles
+ */
+
+.analyze-page {
+  min-height: 100vh;
+  padding: 30px 20px;
+  background: #f5f7fa;
+}
+
+.analyze-container {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.analyze-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 30px;
+  gap: 20px;
+}
+
+.analyze-header h1 {
+  font-size: 28px;
+  color: var(--text-color);
+  margin-bottom: 8px;
+}
+
+.analyze-header p {
+  color: var(--text-light);
+}
+
+/* Mode Toggle */
+.mode-toggle {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 30px;
+  background: white;
+  padding: 12px;
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+}
+
+.mode-btn {
+  flex: 1;
+  padding: 10px 16px;
+  border: 2px solid var(--border-color);
+  background: white;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  color: var(--text-light);
+}
+
+.mode-btn.active {
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+  color: white;
+  border-color: transparent;
+}
+
+.mode-btn:hover:not(.active) {
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+}
+
+/* Upload Section */
+.upload-section {
+  background: white;
+  border-radius: 12px;
+  padding: 30px;
+  box-shadow: var(--shadow);
+  margin-bottom: 20px;
+}
+
+.upload-area {
+  border: 2px dashed var(--primary-color);
+  border-radius: 10px;
+  padding: 50px 20px;
+  text-align: center;
+  background: #f9f9ff;
+  cursor: pointer;
+  transition: all 0.3s;
+  margin-bottom: 16px;
+}
+
+.upload-area:hover {
+  background: #f0f0ff;
+  border-color: var(--secondary-color);
+}
+
+.upload-area.dragover {
+  background: #e8e8ff;
+  border-color: var(--secondary-color);
+  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+}
+
+.upload-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.upload-text {
+  color: var(--primary-color);
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.upload-subtext {
+  color: var(--text-light);
+  font-size: 13px;
+}
+
+/* Preview Section */
+.preview-section {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: var(--shadow);
+  margin-bottom: 20px;
+}
+
+.preview-section h3 {
+  font-size: 16px;
+  margin-bottom: 16px;
+  color: var(--text-color);
+}
+
+.preview-image {
+  border-radius: 8px;
+  overflow: hidden;
+  background: #f5f5f5;
+  max-height: 400px;
+}
+
+.preview-image img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Action Buttons */
+.action-buttons {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.action-buttons .btn {
+  flex: 1;
+  justify-content: center;
+}
+
+/* Camera Section */
+.camera-section {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: var(--shadow);
+  margin-bottom: 20px;
+}
+
+/* Results Display */
+#results-section {
+  animation: slideUp 0.5s ease;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .analyze-header {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .analyze-header h1 {
+    font-size: 24px;
+  }
+
+  .mode-toggle {
+    flex-direction: column;
+  }
+
+  .upload-area {
+    padding: 30px 16px;
+  }
+
+  .upload-icon {
+    font-size: 36px;
+  }
+
+  .action-buttons {
+    flex-direction: column;
+  }
+}

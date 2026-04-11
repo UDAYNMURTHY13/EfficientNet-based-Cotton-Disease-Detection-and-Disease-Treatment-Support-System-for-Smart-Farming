@@ -1,9 +1,10 @@
 """
 CottonCare AI Services Module
-Contains all backend services for ML prediction and API endpoints
+Integrated pipeline for disease detection and severity estimation
 """
 
+from .disease_analysis_pipeline import DiseaseAnalysisPipeline, get_pipeline
 from .api_xai import app as api_app
-from .ml_prediction_service import create_app as create_ml_app
 
-__all__ = ['api_app', 'create_ml_app']
+__all__ = ['DiseaseAnalysisPipeline', 'get_pipeline', 'api_app']
+

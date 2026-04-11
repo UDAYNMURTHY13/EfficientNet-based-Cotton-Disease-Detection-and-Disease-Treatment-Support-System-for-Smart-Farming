@@ -46,7 +46,7 @@ class Settings(BaseSettings):
     
     # File Upload
     MAX_UPLOAD_SIZE: int = 10 * 1024 * 1024  # 10 MB
-    ALLOWED_EXTENSIONS: set = {"jpg", "jpeg", "png", "gif"}
+    ALLOWED_EXTENSIONS: set = {"jpg", "jpeg", "png", "gif"}  # Always these extensions
     UPLOAD_DIR: str = os.getenv("UPLOAD_DIR", "uploads")
     
     # CORS
@@ -55,7 +55,7 @@ class Settings(BaseSettings):
         "http://localhost:3001",
         "http://127.0.0.1:3000",
         "http://127.0.0.1:3001",
-    ]
+    ]  # Always allow these local dev URLs
     
     # Logging
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
