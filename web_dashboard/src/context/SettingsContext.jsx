@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { loadLanguage } from '../i18n';
 
 const SettingsContext = createContext();
 
@@ -44,6 +45,7 @@ export function SettingsProvider({ children }) {
   useEffect(() => {
     applyTheme(theme);
     applyLanguage(language);
+    if (language !== 'en') loadLanguage(language);
   }, []);
 
   // Listen for system theme changes when theme == 'system'
@@ -61,10 +63,11 @@ export function SettingsProvider({ children }) {
     applyTheme(t);
   };
 
-  const setLanguage = (l) => {
+  const setLanguage = async (l) => {
     setLanguageState(l);
     localStorage.setItem('cc_language', l);
     applyLanguage(l);
+    await loadLanguage(l);
   };
 
   return (

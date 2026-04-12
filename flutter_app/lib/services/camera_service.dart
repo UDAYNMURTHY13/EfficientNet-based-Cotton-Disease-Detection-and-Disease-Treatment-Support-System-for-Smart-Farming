@@ -5,13 +5,12 @@ class CameraService {
   final ImagePicker _imagePicker = ImagePicker();
 
   /// Capture image using device camera
-  Future<String?> captureImage() async {
+  Future<XFile?> captureImage() async {
     try {
-      final XFile? photo = await _imagePicker.pickImage(
+      return await _imagePicker.pickImage(
         source: ImageSource.camera,
         imageQuality: 85,
       );
-      return photo?.path;
     } catch (e) {
       debugPrint('Camera capture error: $e');
       return null;
@@ -19,13 +18,12 @@ class CameraService {
   }
 
   /// Pick image from gallery
-  Future<String?> pickImageFromGallery() async {
+  Future<XFile?> pickImageFromGallery() async {
     try {
-      final XFile? image = await _imagePicker.pickImage(
+      return await _imagePicker.pickImage(
         source: ImageSource.gallery,
         imageQuality: 85,
       );
-      return image?.path;
     } catch (e) {
       debugPrint('Gallery pick error: $e');
       return null;

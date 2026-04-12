@@ -1,6 +1,8 @@
 class AppConstants {
   // API Configuration
-  static const String apiBaseUrl = 'http://192.168.1.100:8000';
+  // 10.0.2.2 maps to host machine localhost from an Android emulator.
+  // Change to your machine's LAN IP (e.g. 192.168.1.x) for a physical device.
+  static const String apiBaseUrl = 'http://10.0.2.2:8000';
   static const Duration apiTimeout = Duration(seconds: 30);
   static const String minApiVersion = '2.0';
 

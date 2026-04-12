@@ -354,6 +354,7 @@ class LocationAnalysisRequest(BaseModel):
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     location_accuracy: Optional[float] = None  # Accuracy in meters
+    location_name: Optional[str] = None  # Human-readable place name from reverse geocoding
     environment_conditions: Optional[str] = None  # Weather notes
 
 
@@ -368,6 +369,7 @@ class AnalysisDetailResponse(BaseModel):
     latitude: Optional[float]
     longitude: Optional[float]
     location_accuracy: Optional[float]
+    location_name: Optional[str] = None
     environment_conditions: Optional[str]
     xai_available: bool
     inference_time_ms: float

@@ -84,6 +84,7 @@ class Analysis(Base):
     latitude = Column(Float, nullable=True)
     longitude = Column(Float, nullable=True)
     location_accuracy = Column(Float, nullable=True)  # in meters
+    location_name = Column(String, nullable=True)   # human-readable place name
     
     # Disease Detection Results
     disease_detected = Column(String)

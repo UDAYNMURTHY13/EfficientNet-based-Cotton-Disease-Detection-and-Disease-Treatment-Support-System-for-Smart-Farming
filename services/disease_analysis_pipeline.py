@@ -6,6 +6,7 @@ Integrates disease detection → severity estimation in a single workflow
 import tensorflow as tf
 import numpy as np
 from PIL import Image
+import cv2
 import logging
 import time
 import io
@@ -36,6 +37,18 @@ class DiseaseAnalysisPipeline:
         self.xai_explainer = None
         self.heatmap_generator = None
         self.lesion_detector = None
+
+        # Nutrient and treatment engines
+        try:
+            from services.nutrient_deficiency import NutrientDeficiencyDetector
+            from services.treatment_engine import TreatmentEngine
+            self.nutrient_detector = NutrientDeficiencyDetector()
+            self.treatment_engine = TreatmentEngine()
+            logger.info("✓ Nutrient deficiency detector and treatment engine loaded")
+        except Exception as e:
+            logger.warning(f"⚠ Nutrient/treatment modules failed to load: {e}")
+            self.nutrient_detector = None
+            self.treatment_engine = None
         
         # Disease classes
         self.classes = ['Aphids', 'Army worm', 'Bacterial Blight', 'Powdery Mildew', 'Target spot', 'Healthy']
@@ -140,8 +153,6 @@ class DiseaseAnalysisPipeline:
         Step 2a: Analyze affected area using color-based detection
         """
         try:
-            import cv2
-            
             img_array = np.array(image)
             
             # Convert to HSV
@@ -387,6 +398,42 @@ class DiseaseAnalysisPipeline:
                 except Exception as e:
                     logger.warning(f"Heatmap encoding failed: {e}")
 
+            # Step 4: Nutrient Deficiency Detection
+            nutrient_result = None
+            if self.nutrient_detector is not None and not is_healthy:
+                logger.info("  Step 4: Nutrient deficiency detection...")
+                try:
+                    img_array = np.array(image)
+                    # PIL is RGB; convert to BGR for cv2-based detector
+                    bgr_image = cv2.cvtColor(img_array, cv2.COLOR_RGB2BGR)
+                    nutrient_result = self.nutrient_detector.detect(bgr_image)
+                    logger.debug(f"Nutrient result: {nutrient_result.get('deficiency')}")
+                except Exception as e:
+                    logger.warning(f"Nutrient deficiency detection failed: {e}")
+
+            # Step 5: Treatment Recommendation
+            treatment_result = None
+            if self.treatment_engine is not None and not is_healthy:
+                logger.info("  Step 5: Treatment recommendation...")
+                try:
+                    # Gather detected visual features from lesion details (if XAI ran)
+                    detected_features: list = []
+                    if lesion_result.get('enabled') and lesion_result.get('lesion_details'):
+                        for lesion in lesion_result['lesion_details']:
+                            if isinstance(lesion, dict) and lesion.get('type'):
+                                detected_features.append(lesion['type'])
+
+                    treatment_result = self.treatment_engine.recommend(
+                        disease=disease_result['predicted_class'],
+                        severity=severity_result.get('level', 'Mild'),
+                        affected_area_pct=area_result.get('affected_percentage') or 0.0,
+                        lesion_count=lesion_result.get('lesion_count', 0) if lesion_result.get('enabled') else 0,
+                        detected_features=detected_features,
+                    )
+                    logger.debug(f"Treatment urgency: {treatment_result.get('urgency')}")
+                except Exception as e:
+                    logger.warning(f"Treatment recommendation failed: {e}")
+
             # Compile complete result
             result = {
                 'disease': disease_result['predicted_class'],
@@ -404,7 +451,11 @@ class DiseaseAnalysisPipeline:
                 'grad_cam_overlay': None if is_healthy else grad_cam_overlay,
                 'grad_cam_heatmap': None if is_healthy else grad_cam_heatmap,
                 'inference_time': round(inference_time, 3),
-                'xai_available': self.enable_xai
+                'xai_available': self.enable_xai,
+                # Nutrient deficiency (None when healthy or detection skipped)
+                'nutrient_deficiency': nutrient_result,
+                # Severity-aware treatment plan (None when healthy or skipped)
+                'treatment': treatment_result,
             }
             
             logger.info(f"✓ Analysis complete: {disease_result['predicted_class']} - {severity_result['level']}")

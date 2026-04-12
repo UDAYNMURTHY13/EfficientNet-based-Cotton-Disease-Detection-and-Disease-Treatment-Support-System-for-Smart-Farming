@@ -1,5 +1,6 @@
 import React, { useState, useContext, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import AuthContext from '../context/AuthContext';
 import APIService from '../services/api';
 import '../styles/auth.css';
@@ -8,6 +9,7 @@ function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { login } = useContext(AuthContext);
+  const { t } = useTranslation();
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
@@ -49,23 +51,23 @@ function LoginPage() {
       <aside className="auth-brand">
         <div className="brand-logo">🌿</div>
         <div className="brand-name">CottonCare AI</div>
-        <p className="brand-tagline">AI-powered cotton disease detection for modern farmers</p>
+        <p className="brand-tagline">{t('login.feature_4') ? t('login.tagline') : 'AI-powered cotton disease detection for modern farmers'}</p>
         <div className="brand-features">
           <div className="brand-feature">
             <span className="brand-feature-icon">🔬</span>
-            <span className="brand-feature-text">Multi-stage disease analysis</span>
+            <span className="brand-feature-text">{t('login.feature_1')}</span>
           </div>
           <div className="brand-feature">
             <span className="brand-feature-icon">🤖</span>
-            <span className="brand-feature-text">Explainable AI insights</span>
+            <span className="brand-feature-text">{t('login.feature_2')}</span>
           </div>
           <div className="brand-feature">
             <span className="brand-feature-icon">💊</span>
-            <span className="brand-feature-text">Treatment recommendations</span>
+            <span className="brand-feature-text">{t('login.feature_3')}</span>
           </div>
           <div className="brand-feature">
             <span className="brand-feature-icon">📈</span>
-            <span className="brand-feature-text">Crop health tracking</span>
+            <span className="brand-feature-text">{t('login.feature_4')}</span>
           </div>
         </div>
       </aside>
@@ -74,8 +76,8 @@ function LoginPage() {
       <div className="auth-form-panel">
         <div className="auth-form-inner">
           <div className="auth-form-header">
-            <h2>Welcome back</h2>
-            <p>Sign in to your CottonCare account</p>
+            <h2>{t('login.welcome')}</h2>
+            <p>{t('login.subtitle')}</p>
           </div>
 
           {info  && <div className="alert alert-info">{info}</div>}
@@ -83,7 +85,7 @@ function LoginPage() {
 
           <form onSubmit={handleSubmit} className="auth-form">
             <div className="form-group">
-              <label htmlFor="email">Email address</label>
+              <label htmlFor="email">{t('login.email')}</label>
               <input
                 type="email" id="email" name="email"
                 value={formData.email} onChange={handleChange}
@@ -91,7 +93,7 @@ function LoginPage() {
               />
             </div>
             <div className="form-group">
-              <label htmlFor="password">Password</label>
+              <label htmlFor="password">{t('login.password')}</label>
               <input
                 type="password" id="password" name="password"
                 value={formData.password} onChange={handleChange}
@@ -101,16 +103,16 @@ function LoginPage() {
 
             <button type="submit" className="btn btn-primary btn-block btn-lg" disabled={loading}
               style={{ marginTop: '8px' }}>
-              {loading ? <><span className="spinner-sm" /> Signing in…</> : 'Sign in'}
+              {loading ? <><span className="spinner-sm" /> {t('login.sign_in')}…</> : t('login.sign_in')}
             </button>
           </form>
 
           <div className="demo-hint">
-            Demo: <strong>test@example.com</strong> / <strong>password123</strong>
+            {t('login.demo_hint')}
           </div>
 
           <div className="auth-footer">
-            Don't have an account? <Link to="/signup">Create one free</Link>
+            {t('login.no_account')} <Link to="/signup">{t('login.create_free')}</Link>
           </div>
         </div>
       </div>
@@ -119,4 +121,3 @@ function LoginPage() {
 }
 
 export default LoginPage;
-

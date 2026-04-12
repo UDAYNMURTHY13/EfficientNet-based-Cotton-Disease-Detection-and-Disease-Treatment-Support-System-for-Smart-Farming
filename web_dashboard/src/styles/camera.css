@@ -1,7 +1,4 @@
-/**
- * Camera Component CSS
- */
-
+﻿/* ── Ultra Camera Component ─────────────────────────── */
 .camera-container {
   display: flex;
   flex-direction: column;
@@ -11,10 +8,51 @@
 .camera-view {
   position: relative;
   background: #000;
-  border-radius: 12px;
+  border-radius: 18px;
   overflow: hidden;
   aspect-ratio: 4 / 3;
-  box-shadow: var(--shadow-lg);
+  box-shadow: 0 12px 48px rgba(0,0,0,0.4), 0 0 0 1px rgba(22,163,74,0.2);
+}
+
+/* Corner bracket overlay */
+.camera-view::before,
+.camera-view::after {
+  content: '';
+  position: absolute;
+  z-index: 2;
+  width: 40px; height: 40px;
+  pointer-events: none;
+}
+.camera-view::before {
+  top: 12px; left: 12px;
+  border-top: 3px solid rgba(22,163,74,0.8);
+  border-left: 3px solid rgba(22,163,74,0.8);
+  border-radius: 4px 0 0 0;
+  box-shadow: inset 0 0 0 0 rgba(22,163,74,0.3);
+}
+.camera-view::after {
+  bottom: 12px; right: 12px;
+  border-bottom: 3px solid rgba(22,163,74,0.8);
+  border-right: 3px solid rgba(22,163,74,0.8);
+  border-radius: 0 0 4px 0;
+}
+
+/* Scan line animation */
+.camera-view .scan-line-overlay {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(22,163,74,0.7), transparent);
+  box-shadow: 0 0 8px rgba(22,163,74,0.6);
+  animation: scanLine 2.5s ease-in-out infinite;
+  z-index: 3;
+  pointer-events: none;
+}
+
+@keyframes scanLine {
+  0%   { top: 0%;   opacity: 1; }
+  90%  { top: 98%;  opacity: 1; }
+  100% { top: 100%; opacity: 0; }
 }
 
 .video-stream {
@@ -32,4 +70,7 @@
 .camera-controls .btn {
   flex: 1;
   justify-content: center;
+  transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
+.camera-controls .btn:hover { transform: translateY(-3px) scale(1.02); }
+.camera-controls .btn:active { transform: translateY(0) scale(0.98); }

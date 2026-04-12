@@ -1,4 +1,4 @@
-﻿import React from "react";
+import React from "react";
 import "../styles/results.css";
 
 const SEV_COLOR = {
@@ -190,6 +190,194 @@ function AnalysisResults({ result, originalPreview }) {
           <div className="reasoning-text">{severity.reasoning}</div>
         </div>
       )}
+
+      {/* Treatment recommendation — from TreatmentEngine + treatment_db */}
+      {!isHealthy && analysis.treatment && (() => {
+        const tx = analysis.treatment;
+        const chem = tx.chemical;
+        const org  = tx.organic;
+        return (
+          <div className="card" style={{ marginTop: '20px' }}>
+            <div className="card-header">
+              <h3>💊 Treatment Plan</h3>
+              <span className="gradcam-badge" style={{ background: color + '22', color }}>
+                {tx.severity}
+              </span>
+            </div>
+            <div className="card-body">
+              {/* Urgency + Recovery row */}
+              <div className="tx-meta-row">
+                <div className="tx-meta-chip urgency-chip">
+                  <span className="tx-meta-icon">⚡</span>
+                  <div>
+                    <div className="tx-meta-label">Urgency</div>
+                    <div className="tx-meta-val">{tx.urgency}</div>
+                  </div>
+                </div>
+                <div className="tx-meta-chip">
+                  <span className="tx-meta-icon">📅</span>
+                  <div>
+                    <div className="tx-meta-label">Estimated Recovery</div>
+                    <div className="tx-meta-val">{tx.estimated_recovery_days}</div>
+                  </div>
+                </div>
+              </div>
+
+              {tx.plan_description && (
+                <p className="tx-description">{tx.plan_description}</p>
+              )}
+
+              <div className="tx-columns">
+                {/* Chemical */}
+                {chem && (
+                  <div className="tx-block tx-chemical">
+                    <div className="tx-block-title">🧪 Chemical Treatment</div>
+                    {chem.primary?.name && (
+                      <div className="tx-item">
+                        <span className="tx-tag primary">Primary</span>
+                        <strong>{chem.primary.name}</strong>
+                        {chem.primary.dosage && <span className="tx-detail"> — {chem.primary.dosage}</span>}
+                        {chem.primary.cost   && <span className="tx-cost"> ({chem.primary.cost})</span>}
+                      </div>
+                    )}
+                    {chem.alternative?.name && (
+                      <div className="tx-item">
+                        <span className="tx-tag alt">Alternative</span>
+                        <strong>{chem.alternative.name}</strong>
+                        {chem.alternative.dosage && <span className="tx-detail"> — {chem.alternative.dosage}</span>}
+                        {chem.alternative.cost   && <span className="tx-cost"> ({chem.alternative.cost})</span>}
+                      </div>
+                    )}
+                    {chem.application && (
+                      <div className="tx-note"><span>📋</span> {chem.application}</div>
+                    )}
+                    {chem.safety && (
+                      <div className="tx-note safety"><span>⚠️</span> {chem.safety}</div>
+                    )}
+                  </div>
+                )}
+                {!chem && (
+                  <div className="tx-block tx-chemical">
+                    <div className="tx-block-title">🧪 Chemical Treatment</div>
+                    <div className="tx-note">No chemical intervention required at this severity level.</div>
+                  </div>
+                )}
+
+                {/* Organic */}
+                {org && (
+                  <div className="tx-block tx-organic">
+                    <div className="tx-block-title">🌿 Organic Treatment</div>
+                    {org.primary?.name && (
+                      <div className="tx-item">
+                        <span className="tx-tag primary">Primary</span>
+                        <strong>{org.primary.name}</strong>
+                        {org.primary.dosage     && <span className="tx-detail"> — {org.primary.dosage}</span>}
+                        {org.primary.frequency  && <span className="tx-detail"> — {org.primary.frequency}</span>}
+                      </div>
+                    )}
+                    {org.alternative?.name && (
+                      <div className="tx-item">
+                        <span className="tx-tag alt">Alternative</span>
+                        <strong>{org.alternative.name}</strong>
+                        {org.alternative.dosage    && <span className="tx-detail"> — {org.alternative.dosage}</span>}
+                        {org.alternative.frequency && <span className="tx-detail"> — {org.alternative.frequency}</span>}
+                      </div>
+                    )}
+                    {org.note && (
+                      <div className="tx-note"><span>ℹ️</span> {org.note}</div>
+                    )}
+                    {org.effectiveness && (
+                      <div className="tx-effectiveness">Effectiveness: <strong>{org.effectiveness}</strong></div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Cultural / IPM measures */}
+              {tx.cultural?.length > 0 && (
+                <div className="tx-block tx-cultural">
+                  <div className="tx-block-title">🌾 Cultural / IPM Measures</div>
+                  <ul className="tx-list">
+                    {tx.cultural.map((c, i) => <li key={i}>{c}</li>)}
+                  </ul>
+                </div>
+              )}
+
+              {/* Preventive measures */}
+              {tx.preventive_measures?.length > 0 && (
+                <div className="tx-block tx-preventive">
+                  <div className="tx-block-title">🛡️ Preventive Measures</div>
+                  <ul className="tx-list">
+                    {tx.preventive_measures.map((p, i) => <li key={i}>{p}</li>)}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Nutrient deficiency */}
+      {analysis.nutrient_deficiency && (() => {
+        const nd = analysis.nutrient_deficiency;
+        const hasDeficiency = nd.deficiency && nd.deficiency !== 'No deficiency detected';
+        return (
+          <div className="card" style={{ marginTop: '20px' }}>
+            <div className="card-header">
+              <h3>🌱 Nutrient Deficiency Analysis</h3>
+              {hasDeficiency && (
+                <span className="gradcam-badge" style={{ background: '#f59e0b22', color: '#b45309' }}>
+                  {nd.deficiency}
+                </span>
+              )}
+            </div>
+            <div className="card-body">
+              <div className="nd-result-row">
+                <div className={`nd-status-badge ${hasDeficiency ? 'nd-deficient' : 'nd-healthy'}`}>
+                  {hasDeficiency ? '⚠️ Deficiency Detected' : '✅ No Deficiency'}
+                </div>
+                {hasDeficiency && (
+                  <div className="nd-confidence">
+                    Confidence: <strong>{(nd.confidence * 100).toFixed(0)}%</strong>
+                  </div>
+                )}
+              </div>
+
+              {hasDeficiency && (
+                <>
+                  {nd.symptoms_detected?.length > 0 && (
+                    <div className="nd-section">
+                      <div className="nd-section-title">Symptoms Observed</div>
+                      <ul className="tx-list">
+                        {nd.symptoms_detected.map((s, i) => <li key={i}>{s}</li>)}
+                      </ul>
+                    </div>
+                  )}
+                  {nd.fertilizer_recommendation && (
+                    <div className="nd-fertilizer">
+                      <span className="tx-meta-icon">🧴</span>
+                      <div>
+                        <div className="tx-meta-label">Fertilizer Recommendation</div>
+                        <div className="tx-meta-val">{nd.fertilizer_recommendation}</div>
+                      </div>
+                    </div>
+                  )}
+                  {nd.reason && (
+                    <div className="tx-note" style={{ marginTop: '8px' }}>
+                      <span>🔬</span> {nd.reason}
+                    </div>
+                  )}
+                </>
+              )}
+              {!hasDeficiency && nd.reason && (
+                <div className="tx-note" style={{ marginTop: '8px' }}>
+                  <span>✅</span> {nd.reason}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Lesions */}
       {lesions?.details?.length > 0 && (

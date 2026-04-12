@@ -85,8 +85,8 @@ class StorageService {
         'confidence': prediction.confidence,
         'severity': prediction.severity,
         'timestamp': prediction.timestamp.toIso8601String(),
-        'synced': prediction.synced ? 1 : 0,
-        'xai_data': prediction.xaiData,
+        'synced': 0,
+        'xai_data': null,
       },
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
@@ -105,8 +105,6 @@ class StorageService {
         confidence: maps[i]['confidence'],
         severity: maps[i]['severity'],
         timestamp: DateTime.parse(maps[i]['timestamp']),
-        xaiData: maps[i]['xai_data'],
-        synced: maps[i]['synced'] == 1,
       );
     });
   }
@@ -125,8 +123,6 @@ class StorageService {
         confidence: maps[i]['confidence'],
         severity: maps[i]['severity'],
         timestamp: DateTime.parse(maps[i]['timestamp']),
-        xaiData: maps[i]['xai_data'],
-        synced: false,
       );
     });
   }

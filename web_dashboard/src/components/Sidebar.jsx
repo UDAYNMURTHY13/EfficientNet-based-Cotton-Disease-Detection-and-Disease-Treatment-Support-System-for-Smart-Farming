@@ -1,20 +1,22 @@
 import React, { useContext } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import AuthContext from '../context/AuthContext';
 import './Sidebar.css';
-
-const NAV_ITEMS = [
-  { path: '/dashboard', icon: '⬡',  label: 'Dashboard' },
-  { path: '/analyze',   icon: '🔬', label: 'Analyze' },
-  { path: '/history',   icon: '📋', label: 'History' },
-  { path: '/profile',   icon: '👤', label: 'Profile' },
-  { path: '/settings',  icon: '⚙️', label: 'Settings' },
-];
 
 function Sidebar() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useContext(AuthContext);
+  const { t } = useTranslation();
+
+  const NAV_ITEMS = [
+    { path: '/dashboard', icon: '⬡',  label: t('sidebar.dashboard') },
+    { path: '/analyze',   icon: '🔬', label: t('sidebar.analyze') },
+    { path: '/history',   icon: '📋', label: t('sidebar.history') },
+    { path: '/profile',   icon: '👤', label: t('sidebar.profile') },
+    { path: '/settings',  icon: '⚙️', label: t('sidebar.settings') },
+  ];
 
   const handleLogout = () => {
     logout();
@@ -57,8 +59,8 @@ function Sidebar() {
             {(user?.name || user?.full_name || 'U')[0].toUpperCase()}
           </div>
           <div className="user-info">
-            <span className="user-name">{user?.name || user?.full_name || 'Farmer'}</span>
-            <span className="user-role">Farmer</span>
+            <span className="user-name">{user?.name || user?.full_name || t('sidebar.farmer')}</span>
+            <span className="user-role">{t('sidebar.farmer')}</span>
           </div>
         </div>
         <button className="sidebar-logout" onClick={handleLogout} title="Logout">

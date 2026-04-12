@@ -80,6 +80,7 @@ async def analyze_image(
     latitude: float = Query(None),
     longitude: float = Query(None),
     location_accuracy: float = Query(None),
+    location_name: str = Query(None),
     environment_conditions: str = Query(None),
     current_user: User = Depends(get_current_user_analysis),
     db: Session = Depends(get_db)
@@ -92,6 +93,7 @@ async def analyze_image(
     - latitude: GPS latitude coordinate
     - longitude: GPS longitude coordinate
     - location_accuracy: GPS accuracy in meters
+    - location_name: Human-readable place name (village, taluk, district, state)
     - environment_conditions: Weather/environment notes
     """
     try:
@@ -144,6 +146,7 @@ async def analyze_image(
             latitude=latitude,
             longitude=longitude,
             location_accuracy=location_accuracy,
+            location_name=location_name,
             environment_conditions=environment_conditions,
             disease_detected=disease,
             confidence=confidence,
@@ -227,6 +230,7 @@ async def get_analysis_history(
             "latitude": item.latitude,
             "longitude": item.longitude,
             "location_accuracy": item.location_accuracy,
+            "location_name": item.location_name,
             "environment_conditions": item.environment_conditions,
             # Meta
             "inference_time": item.inference_time,

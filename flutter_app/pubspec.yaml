@@ -32,18 +32,13 @@ dependencies:
 
   # State Management
   provider: ^6.1.0
-  riverpod: ^2.4.9
 
   # Local Storage
   shared_preferences: ^2.2.2
-  hive: ^2.2.3
 
   # JSON Serialization
-  json_annotation: ^4.8.1
-
   # Utilities
   intl: ^0.19.0
-  uuid: ^4.0.0
   connectivity_plus: ^5.0.1
   url_launcher: ^6.2.1
 
@@ -51,20 +46,14 @@ dependencies:
   lottie: ^2.7.0
   shimmer: ^3.0.0
 
-  # Firebase (optional for push notifications)
-  firebase_core: ^2.24.2
-  firebase_messaging: ^14.6.8
-
-  # Analytics
-  firebase_analytics: ^10.5.0
+  # Charts & Visualization
+  fl_chart: ^0.67.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
 
   flutter_lints: ^3.0.0
-  build_runner: ^2.4.6
-  json_serializable: ^6.7.1
 
 flutter:
   uses-material-design: true

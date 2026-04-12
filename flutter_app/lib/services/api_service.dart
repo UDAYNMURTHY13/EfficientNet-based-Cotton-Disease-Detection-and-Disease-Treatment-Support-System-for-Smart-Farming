@@ -1,154 +1,170 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-import '../models/disease.dart';
-import '../models/prediction.dart';
-import '../models/treatment.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+/// Central API service wired to the CottonCare FastAPI backend.
+///
+/// Base URL default is 10.0.2.2:8000 (Android emulator → host machine).
+/// For a physical device change [baseUrl] to your machine's LAN IP e.g. 192.168.x.x:8000.
 class ApiService {
-  static const String _baseUrl = 'http://192.168.1.100:8000'; // Configure for your setup
-  static const Duration _timeout = Duration(seconds: 30);
-
-  late Dio _dio;
-
-  ApiService() {
-    _dio = Dio(
-      BaseOptions(
-        baseUrl: _baseUrl,
-        connectTimeout: _timeout,
-        receiveTimeout: _timeout,
-        contentType: Headers.jsonContentType,
-      ),
-    );
-
-    // Add logging interceptor
-    _dio.interceptors.add(LoggingInterceptor());
+  static ApiService? _instance;
+  static ApiService get instance {
+    _instance ??= ApiService._internal();
+    return _instance!;
   }
 
-  /// Health check for API availability
+  // Auto-selects the right host:
+  //   Web/Chrome  → localhost (same machine)
+  //   Android emulator → 10.0.2.2 (maps to host localhost)
+  //   Physical device → set PHYSICAL_DEVICE_IP to your PC's LAN IP
+  static const String _physicalDeviceIp = '10.43.13.38';
+
+  static String get baseUrl {
+    if (kIsWeb) return 'http://localhost:8000';
+    if (_physicalDeviceIp.isNotEmpty) return 'http://$_physicalDeviceIp:8000';
+    return 'http://10.0.2.2:8000'; // Android emulator default
+  }
+
+  late final Dio _dio;
+
+  ApiService._internal() {
+    _dio = Dio(
+      BaseOptions(
+        baseUrl: baseUrl,
+        connectTimeout: const Duration(seconds: 30),
+        receiveTimeout: const Duration(seconds: 30),
+      ),
+    );
+    if (kDebugMode) {
+      _dio.interceptors.add(
+        LogInterceptor(requestBody: false, responseBody: false,
+            logPrint: (o) => debugPrint(o.toString())),
+      );
+    }
+  }
+
+  // ────────────────────────── helpers ──────────────────────────
+
+  Future<Options> _authOpts() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token') ?? '';
+    return Options(headers: {'Authorization': 'Bearer $token'});
+  }
+
+  // ────────────────────────── AUTH ──────────────────────────
+
+  /// Login with email + password. Returns token map on success.
+  Future<Map<String, dynamic>?> login(String email, String password) async {
+    final response = await _dio.post(
+      '/api/v1/auth/login',
+      data: {'email': email, 'password': password},
+      options: Options(contentType: Headers.jsonContentType),
+    );
+    return response.data as Map<String, dynamic>;
+  }
+
+  /// Register a new account.
+  Future<Map<String, dynamic>?> register({
+    required String email,
+    required String password,
+    required String firstName,
+    String? phone,
+    String? location,
+  }) async {
+    final response = await _dio.post(
+      '/api/v1/auth/register',
+      data: {
+        'email': email,
+        'password': password,
+        'first_name': firstName,
+        if (phone != null && phone.isNotEmpty) 'phone': phone,
+        if (location != null && location.isNotEmpty) 'location': location,
+      },
+      options: Options(contentType: Headers.jsonContentType),
+    );
+    return response.data as Map<String, dynamic>;
+  }
+
+  /// Fetch current user profile (needs valid token).
+  Future<Map<String, dynamic>?> getMe(String token) async {
+    try {
+      final response = await _dio.get(
+        '/api/v1/auth/me',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      return response.data as Map<String, dynamic>;
+    } catch (e) {
+      debugPrint('getMe error: $e');
+      return null;
+    }
+  }
+
+  // ────────────────────────── ANALYSIS ──────────────────────────
+
+  /// Upload a leaf image for disease analysis.
+  Future<Map<String, dynamic>> analyzeImage(XFile imageFile) async {
+    final opts = await _authOpts();
+    final MultipartFile multipart;
+    if (kIsWeb) {
+      // On web dart:io is unavailable — read bytes directly from XFile
+      final bytes = await imageFile.readAsBytes();
+      multipart = MultipartFile.fromBytes(bytes,
+          filename: imageFile.name.isNotEmpty ? imageFile.name : 'leaf.jpg');
+    } else {
+      multipart = await MultipartFile.fromFile(imageFile.path,
+          filename: imageFile.name.isNotEmpty ? imageFile.name : 'leaf.jpg');
+    }
+    final formData = FormData.fromMap({'file': multipart});
+    final response = await _dio.post(
+      '/api/v1/analysis/analyze',
+      data: formData,
+      options: opts,
+    );
+    return response.data as Map<String, dynamic>;
+  }
+
+  /// Fetch paginated scan history.
+  Future<Map<String, dynamic>> getHistory({int page = 1, int pageSize = 20}) async {
+    final opts = await _authOpts();
+    final response = await _dio.get(
+      '/api/v1/analysis/history',
+      queryParameters: {'page': page, 'page_size': pageSize},
+      options: opts,
+    );
+    return response.data as Map<String, dynamic>;
+  }
+
+  /// Fetch dashboard statistics.
+  Future<Map<String, dynamic>> getStats() async {
+    final opts = await _authOpts();
+    final response = await _dio.get('/api/v1/analysis/stats', options: opts);
+    return response.data as Map<String, dynamic>;
+  }
+
+  // ────────────── legacy stubs kept so old imports still compile ──────────────
+
   Future<bool> healthCheck() async {
     try {
       final response = await _dio.get('/health');
       return response.statusCode == 200;
-    } catch (e) {
-      debugPrint('Health check failed: $e');
+    } catch (_) {
       return false;
     }
   }
 
-  /// Send image for disease prediction with XAI
-  Future<Map<String, dynamic>> predictDisease(String imagePath) async {
-    try {
-      final formData = FormData.fromMap({
-        'file': await MultipartFile.fromFile(imagePath),
-      });
-
-      final response = await _dio.post(
-        '/predict/xai',
-        data: formData,
-      );
-
-      if (response.statusCode == 200) {
-        return response.data;
-      } else {
-        throw Exception('Prediction failed with status ${response.statusCode}');
-      }
-    } catch (e) {
-      debugPrint('Prediction error: $e');
-      rethrow;
-    }
-  }
-
-  /// Get treatment information for a disease
-  Future<Treatment> getTreatment(String disease) async {
-    try {
-      final response = await _dio.get('/treatment/$disease');
-
-      if (response.statusCode == 200) {
-        return Treatment.fromJson(response.data);
-      } else {
-        throw Exception('Failed to fetch treatment');
-      }
-    } catch (e) {
-      debugPrint('Treatment fetch error: $e');
-      rethrow;
-    }
-  }
-
-  /// Get all diseases
-  Future<List<Disease>> getAllDiseases() async {
+  Future<List<dynamic>> getAllDiseases() async {
     try {
       final response = await _dio.get('/diseases');
 
       if (response.statusCode == 200) {
-        final List<dynamic> data = response.data;
-        return data.map((item) => Disease.fromJson(item)).toList();
+        return response.data as List<dynamic>;
       } else {
-        throw Exception('Failed to fetch diseases');
+        return [];
       }
-    } catch (e) {
-      debugPrint('Disease fetch error: $e');
-      rethrow;
+    } catch (_) {
+      return [];
     }
   }
-
-  /// Get specific disease details
-  Future<Disease> getDiseaseDetails(String diseaseName) async {
-    try {
-      final response = await _dio.get('/diseases/$diseaseName');
-
-      if (response.statusCode == 200) {
-        return Disease.fromJson(response.data);
-      } else {
-        throw Exception('Failed to fetch disease details');
-      }
-    } catch (e) {
-      debugPrint('Disease details fetch error: $e');
-      rethrow;
-    }
-  }
-
-  /// Sync predictions to server
-  Future<bool> syncPredictions(List<Prediction> predictions) async {
-    try {
-      final data = predictions.map((p) => p.toJson()).toList();
-      final response = await _dio.post('/sync/predictions', data: {'predictions': data});
-
-      return response.statusCode == 200;
-    } catch (e) {
-      debugPrint('Sync error: $e');
-      rethrow;
-    }
-  }
-
-  /// Set the base URL (useful for configuration)
-  void setBaseUrl(String baseUrl) {
-    _dio.options.baseUrl = baseUrl;
-  }
-
-  /// Get current base URL
-  String getBaseUrl() => _dio.options.baseUrl;
 }
 
-class LoggingInterceptor extends Interceptor {
-  @override
-  void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
-    debugPrint('🔵 REQUEST[${options.method}] => PATH: ${options.path}');
-    super.onRequest(options, handler);
-  }
-
-  @override
-  void onResponse(Response response, ResponseInterceptorHandler handler) {
-    debugPrint(
-      '✅ RESPONSE[${response.statusCode}] => PATH: ${response.requestOptions.path}',
-    );
-    super.onResponse(response, handler);
-  }
-
-  @override
-  void onError(DioException err, ErrorInterceptorHandler handler) {
-    debugPrint(
-      '❌ ERROR[${err.response?.statusCode}] => PATH: ${err.requestOptions.path}',
-    );
-    super.onError(err, handler);
-  }
-}

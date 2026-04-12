@@ -1,5 +1,6 @@
 import React, { useState, useRef, useContext, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import AuthContext from '../context/AuthContext';
 import Camera from '../components/Camera';
 import AnalysisResults from '../components/AnalysisResults';
@@ -9,6 +10,7 @@ import '../styles/analyze.css';
 function AnalyzePage() {
   const navigate = useNavigate();
   const { token } = useContext(AuthContext);
+  const { t } = useTranslation();
   const [mode, setMode] = useState('upload');
   const [selectedFile, setSelectedFile] = useState(null);
   const [preview, setPreview] = useState(null);
@@ -24,18 +26,39 @@ function AnalyzePage() {
   const reverseGeocode = async (lat, lon) => {
     try {
       const res = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&zoom=10&addressdetails=1`,
+        `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&zoom=18&addressdetails=1`,
         { headers: { 'Accept-Language': 'en', 'User-Agent': 'CottonCareAI/1.0' } }
       );
       if (!res.ok) return;
       const data = await res.json();
       const a = data.address || {};
-      // Build a short readable label: neighbourhood/suburb, city/town/village, state
-      const parts = [
-        a.suburb || a.neighbourhood || a.village || a.hamlet,
-        a.city || a.town || a.county || a.district,
-        a.state,
-      ].filter(Boolean);
+
+      // Build precise hierarchical location: hamlet/village → suburb/area → city/town → taluk → district → state
+      const parts = [];
+
+      // Most specific: hamlet or village
+      const micro = a.hamlet || a.village;
+      if (micro) parts.push(micro);
+
+      // Local area: suburb or neighbourhood (skip if duplicate)
+      const area = a.suburb || a.neighbourhood;
+      if (area && area !== micro) parts.push(area);
+
+      // City or town (skip if duplicate)
+      const cityTown = a.city || a.town;
+      if (cityTown && cityTown !== micro && cityTown !== area) parts.push(cityTown);
+
+      // Taluk / subdistrict (tehsil / block / mandal)
+      const taluk = a.subdistrict || a.village_district || a.municipality;
+      if (taluk && taluk !== cityTown && taluk !== micro) parts.push(taluk + ' Taluk');
+
+      // District
+      const district = a.district || a.county || a.state_district;
+      if (district && district !== taluk && district !== cityTown) parts.push(district + ' District');
+
+      // State
+      if (a.state) parts.push(a.state);
+
       if (parts.length) setPlaceName(parts.join(', '));
     } catch {
       // Silently ignore — coordinates still shown as fallback
@@ -85,7 +108,7 @@ function AnalyzePage() {
   };
 
   const handleAnalyze = async () => {
-    if (!selectedFile) { setError('Please select or capture an image first'); return; }
+    if (!selectedFile) { setError(t('analyze.select_image_first')); return; }
     setLoading(true);
     setError('');
     try {
@@ -96,7 +119,7 @@ function AnalyzePage() {
         params.set('latitude', location.lat);
         params.set('longitude', location.lon);
         params.set('location_accuracy', location.accuracy);
-        if (placeName) params.set('environment_conditions', placeName);
+        if (placeName) params.set('location_name', placeName);
       }
       const url = `http://localhost:8000/api/v1/analysis/analyze${params.toString() ? '?' + params.toString() : ''}`;
       const res = await APIService.fetchWithAuth(url, {
@@ -131,11 +154,11 @@ function AnalyzePage() {
     <div className="analyze-page">
       <div className="page-header">
         <div>
-          <h1>Disease Analysis</h1>
-          <p>Upload or capture a cotton leaf image for instant AI analysis</p>
+          <h1>{t('analyze.title')}</h1>
+          <p>{t('analyze.subtitle')}</p>
         </div>
         <button className="btn btn-ghost btn-sm" onClick={() => navigate('/history')}>
-          📋 History
+          📋 {t('analyze.history_btn')}
         </button>
       </div>
 
@@ -143,14 +166,13 @@ function AnalyzePage() {
         <>
           {error && <div className="alert alert-error">{error}</div>}
 
-          {/* Mode Toggle */}
           {/* Location status banner */}
           <div className="location-badge">
             {locationStatus === 'pending' && <span className="loc-dot loc-pending" />}
             {locationStatus === 'granted' && <span className="loc-dot loc-ok" />}
             {(locationStatus === 'denied' || locationStatus === 'unavailable') && <span className="loc-dot loc-off" />}
             <span className="loc-text">
-              {locationStatus === 'pending' && 'Getting location…'}
+              {locationStatus === 'pending' && t('analyze.location_pending')}
               {locationStatus === 'granted' && (
                 <>
                   {placeName && <strong>{placeName}</strong>}
@@ -161,19 +183,19 @@ function AnalyzePage() {
                   </span>
                 </>
               )}
-              {locationStatus === 'denied' && '📍 Location access denied — analysis will proceed without GPS'}
-              {locationStatus === 'unavailable' && '📍 Geolocation not supported by this browser'}
+              {locationStatus === 'denied' && t('analyze.location_denied')}
+              {locationStatus === 'unavailable' && t('analyze.location_unavailable')}
             </span>
           </div>
 
           <div className="mode-tabs">
             <button className={`mode-tab ${mode === 'upload' ? 'active' : ''}`}
               onClick={() => { setMode('upload'); handleReset(); }}>
-              📤 Upload
+              📤 {t('analyze.upload_tab')}
             </button>
             <button className={`mode-tab ${mode === 'camera' ? 'active' : ''}`}
               onClick={() => { setMode('camera'); handleReset(); }}>
-              📷 Camera
+              📷 {t('analyze.camera_tab')}
             </button>
           </div>
 
@@ -196,8 +218,8 @@ function AnalyzePage() {
                   ) : (
                     <div className="upload-placeholder">
                       <div className="upload-icon">🖼️</div>
-                      <div className="upload-main-text">Click or drag & drop</div>
-                      <div className="upload-sub-text">PNG, JPG, WebP · max 10 MB</div>
+                      <div className="upload-main-text">{t('analyze.click_drop')}</div>
+                      <div className="upload-sub-text">{t('analyze.file_types')}</div>
                     </div>
                   )}
                 </div>
@@ -213,19 +235,19 @@ function AnalyzePage() {
               <div className="card">
                 <div className="card-body">
                   <h3 style={{ marginBottom: '16px', fontSize: '15px', color: 'var(--text)' }}>
-                    📋 Analysis Pipeline
+                    📋 {t('analyze.pipeline_title')}
                   </h3>
                   {[
-                    { n: '1', t: 'Disease Detection', d: 'CNN classification model' },
-                    { n: '2', t: 'Area Analysis', d: 'Affected region estimation' },
-                    { n: '3', t: 'Lesion Mapping', d: 'Spot-level detection' },
-                    { n: '4', t: 'Severity Scoring', d: 'Clinical severity grade' },
+                    { n: '1', title: t('analyze.pipeline_1'), desc: t('analyze.pipeline_1_desc') },
+                    { n: '2', title: t('analyze.pipeline_2'), desc: t('analyze.pipeline_2_desc') },
+                    { n: '3', title: t('analyze.pipeline_3'), desc: t('analyze.pipeline_3_desc') },
+                    { n: '4', title: t('analyze.pipeline_4'), desc: t('analyze.pipeline_4_desc') },
                   ].map(s => (
                     <div key={s.n} className="pipeline-step">
                       <div className="pipeline-num">{s.n}</div>
                       <div>
-                        <div className="pipeline-title">{s.t}</div>
-                        <div className="pipeline-desc">{s.d}</div>
+                        <div className="pipeline-title">{s.title}</div>
+                        <div className="pipeline-desc">{s.desc}</div>
                       </div>
                     </div>
                   ))}
@@ -237,26 +259,26 @@ function AnalyzePage() {
                     disabled={!selectedFile || loading}
                   >
                     {loading
-                      ? <><span className="spinner-sm" /> Analyzing…</>
-                      : '🔬 Run Analysis'}
+                      ? <><span className="spinner-sm" /> {t('analyze.analyzing')}</>
+                      : `🔬 ${t('analyze.run_analysis')}`}
                   </button>
 
                   {selectedFile && !loading && (
                     <button className="btn btn-ghost btn-block btn-sm"
                       style={{ marginTop: '8px' }} onClick={handleReset}>
-                      Reset
+                      {t('analyze.reset')}
                     </button>
                   )}
                 </div>
               </div>
 
               <div className="tips-card">
-                <div className="tips-title">📸 Photo Tips</div>
+                <div className="tips-title">📸 {t('analyze.photo_tips')}</div>
                 <ul className="tips-list">
-                  <li>Good natural lighting</li>
-                  <li>Leaf fills most of frame</li>
-                  <li>Focus on affected area</li>
-                  <li>Avoid blurry images</li>
+                  <li>{t('analyze.tip_lighting')}</li>
+                  <li>{t('analyze.tip_frame')}</li>
+                  <li>{t('analyze.tip_focus')}</li>
+                  <li>{t('analyze.tip_blur')}</li>
                 </ul>
               </div>
             </div>
@@ -266,7 +288,7 @@ function AnalyzePage() {
         <div id="results-anchor">
           <AnalysisResults result={analysisResult} originalPreview={preview} />
           <button className="btn btn-primary" style={{ marginTop: '28px' }} onClick={handleReset}>
-            ← Analyze Another Image
+            {t('analyze.analyze_another')}
           </button>
         </div>
       )}

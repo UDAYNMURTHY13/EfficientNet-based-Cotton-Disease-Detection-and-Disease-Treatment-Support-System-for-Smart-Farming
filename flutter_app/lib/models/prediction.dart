@@ -1,8 +1,3 @@
-import 'package:json_annotation/json_annotation.dart';
-
-part 'prediction.g.dart';
-
-@JsonSerializable()
 class Prediction {
   final String id;
   final String imagePath;
@@ -10,9 +5,6 @@ class Prediction {
   final double confidence;
   final String severity;
   final DateTime timestamp;
-  final String? xaiData;
-  final bool synced;
-  final Map<String, dynamic>? explanation;
 
   Prediction({
     required this.id,
@@ -21,37 +13,23 @@ class Prediction {
     required this.confidence,
     required this.severity,
     required this.timestamp,
-    this.xaiData,
-    this.synced = false,
-    this.explanation,
   });
 
-  factory Prediction.fromJson(Map<String, dynamic> json) =>
-      _$PredictionFromJson(json);
-  Map<String, dynamic> toJson() => _$PredictionToJson(this);
+  factory Prediction.fromJson(Map<String, dynamic> j) => Prediction(
+    id: j['id'] ?? '',
+    imagePath: j['image_path'] ?? '',
+    disease: j['disease'] ?? '',
+    confidence: (j['confidence'] as num? ?? 0).toDouble(),
+    severity: j['severity'] ?? '',
+    timestamp: DateTime.tryParse(j['timestamp'] ?? '') ?? DateTime.now(),
+  );
 
-  /// Create a copy of Prediction with modified fields
-  Prediction copyWith({
-    String? id,
-    String? imagePath,
-    String? disease,
-    double? confidence,
-    String? severity,
-    DateTime? timestamp,
-    String? xaiData,
-    bool? synced,
-    Map<String, dynamic>? explanation,
-  }) {
-    return Prediction(
-      id: id ?? this.id,
-      imagePath: imagePath ?? this.imagePath,
-      disease: disease ?? this.disease,
-      confidence: confidence ?? this.confidence,
-      severity: severity ?? this.severity,
-      timestamp: timestamp ?? this.timestamp,
-      xaiData: xaiData ?? this.xaiData,
-      synced: synced ?? this.synced,
-      explanation: explanation ?? this.explanation,
-    );
-  }
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'image_path': imagePath,
+    'disease': disease,
+    'confidence': confidence,
+    'severity': severity,
+    'timestamp': timestamp.toIso8601String(),
+  };
 }

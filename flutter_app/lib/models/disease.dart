@@ -1,60 +1,31 @@
-import 'package:json_annotation/json_annotation.dart';
-
-part 'disease.g.dart';
-
-@JsonSerializable()
 class Disease {
-  final String id;
   final String name;
   final String description;
-  final String severity;
-  final double confidence;
-  final String symptoms;
-  final String prevention;
-  final String treatment;
-  final DateTime detectedAt;
+  final String cause;
+  final List<String> symptoms;
+  final List<String> treatments;
 
   Disease({
-    required this.id,
     required this.name,
     required this.description,
-    required this.severity,
-    required this.confidence,
+    required this.cause,
     required this.symptoms,
-    required this.prevention,
-    required this.treatment,
-    required this.detectedAt,
+    required this.treatments,
   });
 
-  factory Disease.fromJson(Map<String, dynamic> json) =>
-      _$DiseaseFromJson(json);
-  Map<String, dynamic> toJson() => _$DiseaseToJson(this);
+  factory Disease.fromJson(Map<String, dynamic> j) => Disease(
+    name: j['name'] ?? '',
+    description: j['description'] ?? '',
+    cause: j['cause'] ?? '',
+    symptoms: List<String>.from(j['symptoms'] ?? []),
+    treatments: List<String>.from(j['treatments'] ?? []),
+  );
 
-  String get severityEmoji {
-    switch (severity.toLowerCase()) {
-      case 'high':
-        return '🔴';
-      case 'medium':
-        return '🟡';
-      case 'low':
-        return '🟢';
-      default:
-        return '⚪';
-    }
-  }
-
-  Color get severityColor {
-    switch (severity.toLowerCase()) {
-      case 'high':
-        return Colors.red;
-      case 'medium':
-        return Colors.orange;
-      case 'low':
-        return Colors.green;
-      default:
-        return Colors.grey;
-    }
-  }
+  Map<String, dynamic> toJson() => {
+    'name': name,
+    'description': description,
+    'cause': cause,
+    'symptoms': symptoms,
+    'treatments': treatments,
+  };
 }
-
-import 'package:flutter/material.dart';
