@@ -32,15 +32,19 @@ function DashboardPage() {
   const { t } = useTranslation();
   const [stats, setStats] = useState(null);
   const [recent, setRecent] = useState([]);
+  const [messages, setMessages] = useState([]);
+  const [showMessages, setShowMessages] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     Promise.all([
       APIService.getAnalysisStats().catch(() => null),
       APIService.getAnalysisHistory(1, 5).catch(() => ({ items: [] })),
-    ]).then(([s, h]) => {
+      APIService.getMyMessages().catch(() => []),
+    ]).then(([s, h, msgs]) => {
       setStats(s);
       setRecent(h?.items || []);
+      setMessages(Array.isArray(msgs) ? msgs : []);
       setLoading(false);
     });
   }, []);
@@ -57,12 +61,36 @@ function DashboardPage() {
       <div className="dashboard-hero">
         <div className="hero-text">
           <h1>{greeting}, {name} 👋</h1>
-          <p>{t('dashboard.subtitle')}</p>
-        </div>
+          <p>{t('dashboard.subtitle')}</p>        </div>
         <button className="btn btn-primary btn-lg" onClick={() => navigate('/analyze')}>
           🔬 {t('dashboard.new_analysis')}
         </button>
       </div>
+
+      {/* Expert Messages Notification */}
+      {messages.length > 0 && (
+        <div style={{ background: '#f0fdf4', border: '1.5px solid #86efac', borderRadius: 10, padding: '12px 16px', marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ fontWeight: 600, color: '#15803d' }}>
+              📬 {messages.length} Expert Message{messages.length > 1 ? 's' : ''} Received
+            </div>
+            <button className="btn btn-ghost btn-sm" style={{ color: '#15803d' }} onClick={() => setShowMessages(v => !v)}>
+              {showMessages ? 'Hide ▲' : 'View ▼'}
+            </button>
+          </div>
+          {showMessages && (
+            <div style={{ marginTop: 10 }}>
+              {messages.map(m => (
+                <div key={m.id} style={{ background: '#fff', borderRadius: 8, padding: '10px 14px', marginBottom: 8, border: '1px solid #bbf7d0' }}>
+                  <div style={{ fontWeight: 600, fontSize: 13 }}>{m.subject || 'Expert Advice'}</div>
+                  <div style={{ fontSize: 12, color: '#64748b', marginBottom: 4 }}>From: {m.from_expert} · {new Date(m.created_at).toLocaleString()}</div>
+                  <div style={{ fontSize: 13 }}>{m.message}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Stats */}
       {loading ? (

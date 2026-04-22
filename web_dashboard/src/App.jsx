@@ -15,6 +15,8 @@ import HistoryPage from './pages/HistoryPage';
 import ProfilePage from './pages/ProfilePage';
 import SettingsPage from './pages/SettingsPage';
 import PrivateRoute from './components/PrivateRoute';
+import CottonBot from './components/CottonBot';
+import ExpertReportsPage from './pages/ExpertReportsPage';
 import './styles/App.css';
 
 function AppShell({ children }) {
@@ -24,6 +26,7 @@ function AppShell({ children }) {
       <main className="app-main">
         <div className="app-content">{children}</div>
       </main>
+      <CottonBot />
     </div>
   );
 }
@@ -136,6 +139,14 @@ function App() {
             element={
               <PrivateRoute>
                 <AppShell><SettingsPage /></AppShell>
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/expert-reports"
+            element={
+              <PrivateRoute>
+                <AppShell><ExpertReportsPage /></AppShell>
               </PrivateRoute>
             }
           />

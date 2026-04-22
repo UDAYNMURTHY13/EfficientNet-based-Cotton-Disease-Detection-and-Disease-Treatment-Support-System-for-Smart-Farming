@@ -15,8 +15,16 @@ from pathlib import Path
 
 from app.core.database import get_db
 from app.core.security import decode_token
-from app.models.db_models import User, Analysis
+from app.models.db_models import User, Analysis, ExpertReview
 from app.schemas import AnalysisResponse, AnalysisHistoryResponse, AnalysisDetailResponse
+
+
+def _image_url(analysis: Analysis) -> str:
+    """Return the correct upload filename from image_path (handles legacy rows)."""
+    import os as _os
+    if analysis.image_path:
+        return _os.path.basename(analysis.image_path)
+    return analysis.image_filename or ""
 
 router = APIRouter(prefix="/analysis", tags=["Analysis"])
 security = HTTPBearer()
@@ -100,11 +108,12 @@ async def analyze_image(
         logger.info(f"Analysis request from user: {current_user.id}")
         user = current_user
         
-        # Save uploaded file
+        # Save uploaded file — use the full UUID-prefixed name so /uploads/<image_filename> works
         file_path = UPLOAD_DIR / f"{uuid.uuid4()}_{file.filename}"
         with open(file_path, "wb") as f:
             f.write(await file.read())
-        
+        stored_filename = file_path.name   # e.g. "a1b2c3_cotton.jpg"
+
         # Run pipeline
         from PIL import Image
         import time
@@ -141,7 +150,7 @@ async def analyze_image(
         # Save to database
         db_analysis = Analysis(
             user_id=user.id,
-            image_filename=file.filename,
+            image_filename=stored_filename,   # UUID-prefixed so /uploads/<image_filename> resolves
             image_path=str(file_path),
             latitude=latitude,
             longitude=longitude,
@@ -190,6 +199,7 @@ async def analyze_image(
 async def get_analysis_history(
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
+    reviewed_only: bool = Query(False),
     current_user: User = Depends(get_current_user_analysis),
     db: Session = Depends(get_db)
 ):
@@ -201,7 +211,13 @@ async def get_analysis_history(
     # Get analyses
     query = db.query(Analysis).filter(
         Analysis.user_id == current_user.id
-    ).order_by(Analysis.analyzed_at.desc())
+    )
+
+    if reviewed_only:
+        reviewed_ids = db.query(ExpertReview.analysis_id)
+        query = query.filter(Analysis.id.in_(reviewed_ids))
+
+    query = query.order_by(Analysis.analyzed_at.desc())
     
     total = query.count()
     items = query.offset((page - 1) * page_size).limit(page_size).all()
@@ -212,6 +228,7 @@ async def get_analysis_history(
             # Identifiers
             "id": item.id,
             "image_filename": item.image_filename,
+            "image_url": _image_url(item),   # correct UUID-prefixed filename for /uploads/<image_url>
             # Detection
             "disease_detected": item.disease_detected,
             "confidence": item.confidence,
@@ -235,6 +252,20 @@ async def get_analysis_history(
             # Meta
             "inference_time": item.inference_time,
             "analyzed_at": item.analyzed_at,
+            # Expert review (if available)
+            "expert_review": (
+                {
+                    "status": item.expert_review.status,
+                    "ai_correct": item.expert_review.ai_correct,
+                    "confirmed_disease": item.expert_review.confirmed_disease,
+                    "urgency_level": item.expert_review.urgency_level,
+                    "expert_notes": item.expert_review.expert_notes,
+                    "treatment_recommendation": item.expert_review.treatment_recommendation,
+                    "follow_up_date": str(item.expert_review.follow_up_date) if item.expert_review.follow_up_date else None,
+                    "reviewed_at": str(item.expert_review.reviewed_at),
+                }
+                if item.expert_review else None
+            ),
         } for item in items]
     )
 
@@ -261,6 +292,92 @@ async def get_analysis_detail(
         )
     
     return AnalysisDetailResponse.from_orm(analysis)
+
+
+@router.get("/history/{analysis_id}/full")
+async def get_analysis_full_detail(
+    analysis_id: str,
+    current_user: User = Depends(get_current_user_analysis),
+    db: Session = Depends(get_db)
+):
+    """
+    Full analysis detail for farmer — AI output + expert review + expert messages
+    """
+    from app.models.db_models import ExpertMessage
+    analysis = db.query(Analysis).filter(
+        Analysis.id == analysis_id,
+        Analysis.user_id == current_user.id
+    ).first()
+    if not analysis:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Analysis not found")
+
+    review = analysis.expert_review
+
+    # Expert messages for this analysis
+    msgs = (
+        db.query(ExpertMessage)
+        .filter(
+            ExpertMessage.to_farmer_id == current_user.id,
+            ExpertMessage.analysis_id == analysis_id
+        )
+        .order_by(ExpertMessage.created_at)
+        .all()
+    )
+    # Mark messages as read
+    for m in msgs:
+        if not m.is_read:
+            m.is_read = True
+    db.commit()
+
+    expert_messages = []
+    for m in msgs:
+        expert = db.query(User).filter(User.id == m.from_expert_id).first()
+        expert_messages.append({
+            "id": m.id,
+            "subject": m.subject,
+            "message": m.message,
+            "from_expert": expert.first_name if expert else "Expert",
+            "expert_email": expert.email if expert else None,
+            "created_at": str(m.created_at),
+        })
+
+    return {
+        "id": analysis.id,
+        "image_url": _image_url(analysis),
+        "image_filename": analysis.image_filename,
+        "analyzed_at": str(analysis.analyzed_at),
+        "location_name": analysis.location_name,
+        "latitude": analysis.latitude,
+        "longitude": analysis.longitude,
+        # AI output
+        "disease_detected": analysis.disease_detected,
+        "confidence": analysis.confidence,
+        "confidence_percentage": analysis.confidence_percentage,
+        "severity_level": analysis.severity_level,
+        "severity_score": analysis.severity_score,
+        "affected_area_percentage": analysis.affected_area_percentage,
+        "lesion_count": analysis.lesion_count,
+        "reasoning": analysis.reasoning,
+        "recommendation": analysis.recommendation,
+        "indicators": analysis.indicators,
+        "inference_time": analysis.inference_time,
+        # Expert review
+        "expert_review": (
+            {
+                "status": review.status,
+                "ai_correct": review.ai_correct,
+                "confirmed_disease": review.confirmed_disease,
+                "urgency_level": review.urgency_level,
+                "expert_notes": review.expert_notes,
+                "treatment_recommendation": review.treatment_recommendation,
+                "follow_up_date": str(review.follow_up_date) if review.follow_up_date else None,
+                "reviewed_at": str(review.reviewed_at),
+            }
+            if review else None
+        ),
+        # Expert messages for this analysis
+        "expert_messages": expert_messages,
+    }
 
 
 @router.delete("/history/{analysis_id}")

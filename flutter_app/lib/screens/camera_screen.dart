@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import '../services/api_service.dart';
@@ -20,6 +21,10 @@ class _CameraScreenState extends State<CameraScreen>
   bool _analyzing = false;
   String? _error;
 
+  // GPS
+  Position? _currentPosition;
+  String _locationStatus = 'pending'; // pending | granted | denied | unavailable
+
   late AnimationController _pulseCtrl;
   late Animation<double> _pulseAnim;
 
@@ -31,6 +36,37 @@ class _CameraScreenState extends State<CameraScreen>
       ..repeat(reverse: true);
     _pulseAnim = Tween<double>(begin: 1.0, end: 1.06).animate(
         CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut));
+    if (!kIsWeb) _initLocation();
+  }
+
+  Future<void> _initLocation() async {
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        setState(() => _locationStatus = 'unavailable');
+        return;
+      }
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        setState(() => _locationStatus = 'denied');
+        return;
+      }
+      final pos = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+      if (mounted) {
+        setState(() {
+          _currentPosition = pos;
+          _locationStatus = 'granted';
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _locationStatus = 'denied');
+    }
   }
 
   @override
@@ -58,8 +94,23 @@ class _CameraScreenState extends State<CameraScreen>
       _analyzing = true;
       _error = null;
     });
+    // Refresh GPS fix before analysis
+    if (!kIsWeb && _locationStatus == 'granted') {
+      try {
+        final pos = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high,
+        );
+        setState(() => _currentPosition = pos);
+      } catch (_) {}
+    }
     try {
-      final result = await ApiService.instance.analyzeImage(_imageFile!);
+      final pos = _currentPosition;
+      final result = await ApiService.instance.analyzeImage(
+        _imageFile!,
+        latitude: pos?.latitude,
+        longitude: pos?.longitude,
+        locationAccuracy: pos?.accuracy,
+      );
       if (mounted) {
         Navigator.pushNamed(context, '/results', arguments: result);
       }
@@ -195,7 +246,58 @@ class _CameraScreenState extends State<CameraScreen>
                     ),
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 12),
+
+                // ── Location status chip ───────────────────────────
+                if (!kIsWeb)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: _locationStatus == 'granted'
+                          ? const Color(0xFFDCFCE7)
+                          : const Color(0xFFFEF9C3),
+                      borderRadius: BorderRadius.circular(30),
+                      border: Border.all(
+                        color: _locationStatus == 'granted'
+                            ? const Color(0xFF86EFAC)
+                            : const Color(0xFFFDE047),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          _locationStatus == 'granted'
+                              ? Icons.location_on_rounded
+                              : _locationStatus == 'pending'
+                                  ? Icons.location_searching_rounded
+                                  : Icons.location_off_rounded,
+                          size: 14,
+                          color: _locationStatus == 'granted'
+                              ? const Color(0xFF16a34a)
+                              : const Color(0xFFCA8A04),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          _locationStatus == 'granted' && _currentPosition != null
+                              ? '${_currentPosition!.latitude.toStringAsFixed(5)}, '
+                                '${_currentPosition!.longitude.toStringAsFixed(5)} '
+                                '(±${_currentPosition!.accuracy.round()}m)'
+                              : _locationStatus == 'pending'
+                                  ? 'Getting location…'
+                                  : 'Location not available',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: _locationStatus == 'granted'
+                                ? const Color(0xFF15803d)
+                                : const Color(0xFF854D0E),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                const SizedBox(height: 12),
 
                 // ── Pick buttons ───────────────────────────────────
                 Row(

@@ -1,0 +1,86 @@
+:root {
+  --brand: #2e7d32;
+  --brand-dark: #1b5e20;
+  --brand-light: #e8f5e9;
+  --sidebar-w: 240px;
+}
+body { background: #f4f6f8; }
+
+/* ── Sidebar ── */
+.cc-sidebar {
+  position: fixed; top: 0; left: 0;
+  width: var(--sidebar-w); height: 100vh;
+  background: var(--brand-dark);
+  display: flex; flex-direction: column;
+  z-index: 100; overflow-y: auto;
+}
+.cc-brand { padding: 22px 20px 14px; color: #fff; border-bottom: 1px solid rgba(255,255,255,.15); }
+.cc-brand-name { font-weight: 700; font-size: 1.1rem; }
+.cc-brand-tag { display: block; font-size: .7rem; opacity: .65; letter-spacing: .5px; margin-top: 2px; }
+.cc-nav { list-style: none; padding: 8px 0; margin: 0; flex: 1; }
+.cc-nav-link {
+  display: flex; align-items: center; gap: 10px;
+  padding: 11px 20px; color: rgba(255,255,255,.75) !important;
+  text-decoration: none; font-size: .88rem;
+  transition: all .15s; cursor: pointer; border: none; background: none; width: 100%;
+}
+.cc-nav-link:hover, .cc-nav-link.active { background: rgba(255,255,255,.15); color: #fff !important; }
+.cc-nav-link i { font-size: 1rem; width: 18px; }
+.cc-sidebar-footer { padding: 16px 20px; border-top: 1px solid rgba(255,255,255,.15); }
+
+/* ── Layout ── */
+.cc-main { margin-left: var(--sidebar-w); padding: 28px; min-height: 100vh; }
+.cc-topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; }
+.cc-topbar h4 { margin: 0; font-weight: 700; color: #1a2e1a; }
+.cc-user-badge {
+  background: var(--brand-light); color: var(--brand);
+  border-radius: 20px; padding: 6px 14px; font-size: .82rem; font-weight: 600;
+}
+
+/* ── Stat Cards ── */
+.cc-stat { background: #fff; border-radius: 12px; padding: 20px 22px; box-shadow: 0 2px 8px rgba(0,0,0,.06); border-left: 4px solid var(--brand); }
+.cc-stat.warn  { border-left-color: #f57c00; }
+.cc-stat.danger{ border-left-color: #c62828; }
+.cc-stat.info  { border-left-color: #1565c0; }
+.cc-stat .cc-stat-label { font-size: .75rem; color: #888; text-transform: uppercase; letter-spacing: .5px; }
+.cc-stat .cc-stat-val { font-size: 2rem; font-weight: 700; color: #1a2e1a; line-height: 1.1; }
+.cc-stat .cc-stat-sub { font-size: .75rem; color: #bbb; }
+
+/* ── Card panel ── */
+.cc-panel { background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.06); padding: 24px; margin-bottom: 24px; }
+.cc-panel-title { font-weight: 700; color: #1a2e1a; margin-bottom: 16px; font-size: 1rem; }
+
+/* ── Table ── */
+.table th { font-size: .75rem; text-transform: uppercase; letter-spacing: .4px; color: #888; border-top: 0; }
+.table td { vertical-align: middle; font-size: .87rem; }
+
+/* ── Badges ── */
+.role-badge { font-size: .68rem; padding: 3px 8px; border-radius: 20px; font-weight: 600; text-transform: uppercase; }
+.role-admin  { background: #fce4ec; color: #c62828; }
+.role-expert { background: #e8eaf6; color: #283593; }
+.role-farmer { background: #e8f5e9; color: #2e7d32; }
+.sev-healthy  { background: #e8f5e9; color: #2e7d32; }
+.sev-mild     { background: #fff9c4; color: #f57f17; }
+.sev-moderate { background: #ffe0b2; color: #e65100; }
+.sev-severe   { background: #ffcdd2; color: #c62828; }
+.sev-critical { background: #880e4f; color: #fff; }
+.status-approved       { background: #e8f5e9; color: #2e7d32; }
+.status-needs_attention{ background: #fff3e0; color: #e65100; }
+.status-critical       { background: #880e4f; color: #fff; }
+
+/* ── Login ── */
+.cc-login-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #1b5e20, #43a047); }
+.cc-login-card { background: #fff; border-radius: 16px; padding: 40px 36px; width: 380px; box-shadow: 0 8px 32px rgba(0,0,0,.2); }
+
+/* ── Misc ── */
+.cc-empty { text-align: center; color: #ccc; padding: 40px; }
+.cc-empty i { font-size: 2.5rem; display: block; margin-bottom: 8px; }
+.btn-brand { background: var(--brand); color: #fff; border: none; }
+.btn-brand:hover { background: var(--brand-dark); color: #fff; }
+.thumb { width: 44px; height: 44px; object-fit: cover; border-radius: 6px; cursor: zoom-in; }
+.dot-on, .dot-off { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; }
+.dot-on { background: #2e7d32; }
+.dot-off { background: #bbb; }
+.dot-on  { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #43a047; margin-right: 5px; }
+.dot-off { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #e53935; margin-right: 5px; }
+.chart-wrap { position: relative; height: 260px; }

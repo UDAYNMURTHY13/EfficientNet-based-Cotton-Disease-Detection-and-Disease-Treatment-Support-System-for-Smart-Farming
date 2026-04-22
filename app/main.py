@@ -7,6 +7,7 @@ from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exception_handlers import RequestValidationError
+from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 import logging
 import os
@@ -89,6 +90,13 @@ async def health():
 
 # Include API routers
 app.include_router(api_router, prefix=settings.API_V1_STR)
+
+# Serve uploaded images statically so admin/expert dashboards can display them
+import pathlib
+_uploads_dir = pathlib.Path("uploads")
+_uploads_dir.mkdir(exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=str(_uploads_dir)), name="uploads")
+
 
 
 # Exception handlers

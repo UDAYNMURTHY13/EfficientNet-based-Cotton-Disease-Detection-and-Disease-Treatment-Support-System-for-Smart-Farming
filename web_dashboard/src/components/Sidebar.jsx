@@ -11,11 +11,12 @@ function Sidebar() {
   const { t } = useTranslation();
 
   const NAV_ITEMS = [
-    { path: '/dashboard', icon: '⬡',  label: t('sidebar.dashboard') },
-    { path: '/analyze',   icon: '🔬', label: t('sidebar.analyze') },
-    { path: '/history',   icon: '📋', label: t('sidebar.history') },
-    { path: '/profile',   icon: '👤', label: t('sidebar.profile') },
-    { path: '/settings',  icon: '⚙️', label: t('sidebar.settings') },
+    { path: '/dashboard',       icon: '⬡',  label: t('sidebar.dashboard') },
+    { path: '/analyze',         icon: '🔬', label: t('sidebar.analyze') },
+    { path: '/history',         icon: '📋', label: t('sidebar.history') },
+    { path: '/expert-reports',  icon: '🧑‍🌾', label: 'Expert Reports' },
+    { path: '/profile',         icon: '👤', label: t('sidebar.profile') },
+    { path: '/settings',        icon: '⚙️', label: t('sidebar.settings') },
   ];
 
   const handleLogout = () => {

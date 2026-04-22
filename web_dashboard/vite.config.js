@@ -10,6 +10,15 @@ export default defineConfig({
         target: 'http://localhost:8000',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, '')
+      },
+      '/ollama': {
+        target: 'http://localhost:11434',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/ollama/, '')
+      },
+      '/uploads': {
+        target: 'http://localhost:8000',
+        changeOrigin: true
       }
     }
   }

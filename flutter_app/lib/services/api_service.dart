@@ -103,7 +103,13 @@ class ApiService {
   // ────────────────────────── ANALYSIS ──────────────────────────
 
   /// Upload a leaf image for disease analysis.
-  Future<Map<String, dynamic>> analyzeImage(XFile imageFile) async {
+  Future<Map<String, dynamic>> analyzeImage(
+    XFile imageFile, {
+    double? latitude,
+    double? longitude,
+    double? locationAccuracy,
+    String? locationName,
+  }) async {
     final opts = await _authOpts();
     final MultipartFile multipart;
     if (kIsWeb) {
@@ -116,9 +122,15 @@ class ApiService {
           filename: imageFile.name.isNotEmpty ? imageFile.name : 'leaf.jpg');
     }
     final formData = FormData.fromMap({'file': multipart});
+    final queryParams = <String, dynamic>{};
+    if (latitude != null) queryParams['latitude'] = latitude;
+    if (longitude != null) queryParams['longitude'] = longitude;
+    if (locationAccuracy != null) queryParams['location_accuracy'] = locationAccuracy;
+    if (locationName != null && locationName.isNotEmpty) queryParams['location_name'] = locationName;
     final response = await _dio.post(
       '/api/v1/analysis/analyze',
       data: formData,
+      queryParameters: queryParams.isNotEmpty ? queryParams : null,
       options: opts,
     );
     return response.data as Map<String, dynamic>;

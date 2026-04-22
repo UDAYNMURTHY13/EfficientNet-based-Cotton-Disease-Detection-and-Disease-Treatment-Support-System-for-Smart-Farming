@@ -71,17 +71,29 @@ function AnalyzePage() {
       return;
     }
     setLocationStatus('pending');
-    navigator.geolocation.getCurrentPosition(
+    let lastReverseGeocodedCoords = null;
+
+    const watchId = navigator.geolocation.watchPosition(
       (pos) => {
         const lat = pos.coords.latitude;
         const lon = pos.coords.longitude;
         setLocation({ lat, lon, accuracy: pos.coords.accuracy });
         setLocationStatus('granted');
-        reverseGeocode(lat, lon);
+        // Only re-reverse-geocode if coordinates changed by more than ~50m
+        if (
+          !lastReverseGeocodedCoords ||
+          Math.abs(lastReverseGeocodedCoords.lat - lat) > 0.0005 ||
+          Math.abs(lastReverseGeocodedCoords.lon - lon) > 0.0005
+        ) {
+          lastReverseGeocodedCoords = { lat, lon };
+          reverseGeocode(lat, lon);
+        }
       },
       () => setLocationStatus('denied'),
-      { enableHighAccuracy: true, timeout: 8000 }
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
+
+    return () => navigator.geolocation.clearWatch(watchId);
   }, []);
 
   const setFile = (file) => {

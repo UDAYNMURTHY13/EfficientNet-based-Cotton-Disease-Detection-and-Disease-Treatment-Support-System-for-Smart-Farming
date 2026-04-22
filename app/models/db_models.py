@@ -66,6 +66,9 @@ class User(Base):
     
     # Relationships
     analyses = relationship("Analysis", back_populates="user", cascade="all, delete-orphan")
+    expert_reviews = relationship("ExpertReview", foreign_keys="ExpertReview.expert_id", back_populates="expert")
+    sent_messages = relationship("ExpertMessage", foreign_keys="ExpertMessage.from_expert_id", back_populates="from_expert")
+    received_messages = relationship("ExpertMessage", foreign_keys="ExpertMessage.to_farmer_id", back_populates="to_farmer")
     
     def __repr__(self):
         return f"<User {self.email}>"
@@ -113,6 +116,58 @@ class Analysis(Base):
     
     # Relationships
     user = relationship("User", back_populates="analyses")
+    expert_review = relationship("ExpertReview", back_populates="analysis", uselist=False)
     
     def __repr__(self):
         return f"<Analysis {self.id} - {self.disease_detected}>"
+
+
+class ExpertReview(Base):
+    """Expert validation of an AI analysis — one review per analysis"""
+    __tablename__ = "expert_reviews"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    analysis_id = Column(String, ForeignKey("analyses.id"), index=True, unique=True)
+    expert_id = Column(String, ForeignKey("users.id"), index=True)
+
+    # Verdict
+    status = Column(String, default="approved")          # approved | needs_attention | critical
+    ai_correct = Column(String, nullable=True)           # confirmed | partial | incorrect
+    confirmed_disease = Column(String, nullable=True)    # override when AI was wrong
+    urgency_level = Column(String, nullable=True)        # routine | moderate | urgent | critical
+
+    # Expert notes
+    expert_notes = Column(String, nullable=True)
+    treatment_recommendation = Column(String, nullable=True)
+    follow_up_date = Column(DateTime, nullable=True)
+
+    reviewed_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    analysis = relationship("Analysis", back_populates="expert_review")
+    expert = relationship("User", foreign_keys=[expert_id], back_populates="expert_reviews")
+
+    def __repr__(self):
+        return f"<ExpertReview {self.id} - {self.status}>"
+
+
+class ExpertMessage(Base):
+    """Messages sent by experts to farmers"""
+    __tablename__ = "expert_messages"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    from_expert_id = Column(String, ForeignKey("users.id"), index=True)
+    to_farmer_id = Column(String, ForeignKey("users.id"), index=True)
+    analysis_id = Column(String, ForeignKey("analyses.id"), nullable=True)
+
+    subject = Column(String, nullable=True)
+    message = Column(String)
+    is_read = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    from_expert = relationship("User", foreign_keys=[from_expert_id], back_populates="sent_messages")
+    to_farmer = relationship("User", foreign_keys=[to_farmer_id], back_populates="received_messages")
+
+    def __repr__(self):
+        return f"<ExpertMessage {self.id}>"

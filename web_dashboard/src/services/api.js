@@ -106,9 +106,25 @@ class APIService {
     return response.json();
   }
 
+  async getReviewedAnalyses(page = 1, pageSize = 20) {
+    const response = await this.fetchWithAuth(
+      `${this.baseURL}/analysis/history?page=${page}&page_size=${pageSize}&reviewed_only=true`,
+      { headers: this.getAuthHeader() }
+    );
+    return response.json();
+  }
+
   async getAnalysisDetail(analysisId) {
     const response = await this.fetchWithAuth(
       `${this.baseURL}/analysis/history/${analysisId}`,
+      { headers: this.getAuthHeader() }
+    );
+    return response.json();
+  }
+
+  async getAnalysisFullDetail(analysisId) {
+    const response = await this.fetchWithAuth(
+      `${this.baseURL}/analysis/history/${analysisId}/full`,
       { headers: this.getAuthHeader() }
     );
     return response.json();
@@ -125,6 +141,18 @@ class APIService {
   async getAnalysisStats() {
     const response = await this.fetchWithAuth(
       `${this.baseURL}/analysis/stats`,
+      { headers: this.getAuthHeader() }
+    );
+    return response.json();
+  }
+
+  // ============================================================================
+  // MESSAGES (from experts to this farmer)
+  // ============================================================================
+
+  async getMyMessages() {
+    const response = await this.fetchWithAuth(
+      `${this.baseURL}/expert/my-messages`,
       { headers: this.getAuthHeader() }
     );
     return response.json();
